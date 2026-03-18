@@ -169,6 +169,10 @@
 - [x] Fix 1B: Restructure DopplerProcessor for proper stereo (per-channel buffers, shared sweep)
 - [x] Fix 1C: Fix internal generator double-advance (generate source once per sample, not per channel)
 - [x] Fix 1D: Move SmoothedValues into TransientEngine for proper per-sample smoothing
+- [x] Fix 2A: Remove onset fade-in that kills the apex (crossfade at re-trigger remains)
+- [x] Fix 2B: Consolidate duplicated envelope constants into EnvelopeConstants.h, add static computeShapeAtNormalized()
+- [x] Fix 2C: Fix getTailLengthSeconds() returning zero (now returns worst-case 7s)
+- [x] Fix 2D: Replace linear Doppler delay ramp with exponential curve (front-loaded pitch change)
 
 ---
 

@@ -45,9 +45,13 @@ private:
     int writeIndex   = 0;
 
     // Delay sweep state (shared across channels)
-    float currentDelay    = 0.0f;    // Current delay in fractional samples
-    float delayIncrement  = 0.0f;    // How much delay grows per sample
-    int tailSamples       = 0;       // Duration of current tail
-    int sweepIndex        = 0;       // Current sample within the tail sweep
-    bool sweepActive      = false;
+    float currentDelay       = 0.0f;    // Current delay in fractional samples
+    float maxDelayRange      = 0.0f;    // Total delay accumulation over the tail
+    float curveNormalization = 1.0f;    // Precomputed: 1.0 / (1.0 - exp(-CURVE_SHAPE))
+    int tailSamples          = 0;       // Duration of current tail
+    int sweepIndex           = 0;       // Current sample within the tail sweep
+    bool sweepActive         = false;
+
+    // Exponential curve tension — higher = more front-loaded pitch change (Doppler character)
+    static constexpr float CURVE_SHAPE = 3.0f;
 };
