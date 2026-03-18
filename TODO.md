@@ -11,8 +11,8 @@
 - [x] Read and internalize JUCE_VST3_BEST_PRACTICES.md
 - [x] Assess all claude agent/prompt files (keep/adjust/remove) and document in claude.md
 - [x] Create project directory structure (Source/, DSP/, UI/, Parameters/, Tests/, Docs/, Assets/)
-- [ ] Initialize git repository with .gitignore (build/, JUCE/, .DS_Store, *.o, CMake caches)
-- [ ] Add JUCE as git submodule: `git submodule add https://github.com/juce-framework/JUCE.git JUCE`
+- [x] Initialize git repository with .gitignore (build/, JUCE/, .DS_Store, *.o, CMake caches)
+- [x] Add JUCE as git submodule: `git submodule add https://github.com/juce-framework/JUCE.git JUCE`
 - [x] Create root CMakeLists.txt with juce_add_plugin configuration
   - [x] Set PLUGIN_NAME "Transient Creator"
   - [x] Set unique PLUGIN_MANUFACTURER_CODE (Zqsf) and PLUGIN_CODE (TrCr)
@@ -26,7 +26,7 @@
 - [x] Create .clang-format with project style rules
 - [x] Create stub PluginProcessor.h/cpp (inherits juce::AudioProcessor)
 - [x] Create stub PluginEditor.h/cpp (inherits juce::AudioProcessorEditor)
-- [ ] Verify the project builds as an empty passthrough plugin
+- [x] Verify the project builds as an empty passthrough plugin
 - [ ] Load in a DAW (or JUCE AudioPluginHost) and confirm it instantiates without crashing
 
 ---

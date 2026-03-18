@@ -3,6 +3,7 @@
 TransientCreatorEditor::TransientCreatorEditor(TransientCreatorProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
+    juce::ignoreUnused(processorRef);
     addAndMakeVisible(mainPanel);
     setSize(500, 350);
     setResizable(true, true);
