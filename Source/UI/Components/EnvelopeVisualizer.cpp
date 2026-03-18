@@ -1,4 +1,5 @@
 #include "EnvelopeVisualizer.h"
+#include "../LookAndFeel/TransientLookAndFeel.h"
 
 EnvelopeVisualizer::EnvelopeVisualizer(juce::AudioProcessorValueTreeState& apvts)
 {
@@ -28,7 +29,8 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float w = bounds.getWidth();
     const float h = bounds.getHeight();
 
-    g.setColour(juce::Colour(0xff0a0e1a));
+    // Background
+    g.setColour(juce::Colour(TransientLookAndFeel::BG_DARK));
     g.fillRoundedRectangle(bounds, 4.0f);
 
     const auto shape      = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
@@ -36,7 +38,6 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float gapMs     = silenceGapParam->load();
     const float attackMs  = attackTimeParam->load();
     const float tension   = tensionParam->load();
-
     const float holdPercent = holdParam->load();
 
     const float referenceTailSamples = (tailMs / 1000.0f) * REFERENCE_RATE;
@@ -51,15 +52,32 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     // Gap region
     if (gapWidth > 0.0f)
     {
-        g.setColour(juce::Colour(0xff111827));
+        g.setColour(juce::Colour(TransientLookAndFeel::BG_PANEL));
         g.fillRoundedRectangle(bounds.getX() + tailWidth, bounds.getY(), gapWidth, h, 0.0f);
     }
 
     // Separator
-    g.setColour(juce::Colour(0xff334155));
+    g.setColour(juce::Colour(TransientLookAndFeel::KNOB_TRACK));
     g.drawVerticalLine(static_cast<int>(bounds.getX() + tailWidth), bounds.getY(), bounds.getBottom());
 
-    // Build envelope path with attack and tension
+    // Shape name in top-left
+    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.5f));
+    g.setFont(juce::FontOptions(10.0f));
+    g.drawText(shapeChoices[static_cast<int>(shape)],
+               juce::Rectangle<float>(bounds.getX() + 6.0f, bounds.getY() + 4.0f, 100.0f, 12.0f),
+               juce::Justification::centredLeft);
+
+    // Region labels
+    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.35f));
+    g.setFont(juce::FontOptions(9.0f));
+    if (tailWidth > 40.0f)
+        g.drawText("TAIL", juce::Rectangle<float>(bounds.getX(), bounds.getY() + 4.0f, tailWidth, 10.0f),
+                   juce::Justification::centred);
+    if (gapWidth > 40.0f)
+        g.drawText("GAP", juce::Rectangle<float>(bounds.getX() + tailWidth, bounds.getY() + 4.0f, gapWidth, 10.0f),
+                   juce::Justification::centred);
+
+    // Build envelope path
     juce::Path envelopePath;
     bool pathStarted = false;
 
@@ -90,7 +108,7 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     }
 
     // Draw curve
-    g.setColour(juce::Colour(0xff3b82f6));
+    g.setColour(juce::Colour(TransientLookAndFeel::ACCENT));
     g.strokePath(envelopePath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
 
@@ -99,11 +117,11 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     fillPath.lineTo(bounds.getRight(), bounds.getBottom());
     fillPath.lineTo(bounds.getX(), bounds.getBottom());
     fillPath.closeSubPath();
-    g.setColour(juce::Colour(0xff3b82f6).withAlpha(0.15f));
+    g.setColour(juce::Colour(TransientLookAndFeel::ACCENT).withAlpha(0.15f));
     g.fillPath(fillPath);
 
-    // Labels
-    g.setColour(juce::Colour(0xff94a3b8));
+    // Duration labels
+    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM));
     g.setFont(juce::FontOptions(11.0f));
 
     const juce::String tailLabel = juce::String(tailMs, 1) + " ms";

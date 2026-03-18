@@ -2,7 +2,6 @@
 
 TransientLookAndFeel::TransientLookAndFeel()
 {
-    // Global colour overrides
     setColour(juce::Slider::textBoxTextColourId, juce::Colour(TEXT_PRIMARY));
     setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(KNOB_BG));
     setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
@@ -22,7 +21,7 @@ TransientLookAndFeel::TransientLookAndFeel()
 
 void TransientLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
                                              float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
-                                             juce::Slider& /*slider*/)
+                                             juce::Slider& slider)
 {
     const float radius = static_cast<float>(juce::jmin(width, height)) * 0.4f;
     const float centreX = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
@@ -33,7 +32,7 @@ void TransientLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int
     g.setColour(juce::Colour(KNOB_BG));
     g.fillEllipse(centreX - radius, centreY - radius, radius * 2.0f, radius * 2.0f);
 
-    // Track arc (full range, dim)
+    // Track arc
     const float trackWidth = 3.0f;
     juce::Path trackArc;
     trackArc.addCentredArc(centreX, centreY, radius - trackWidth, radius - trackWidth,
@@ -42,7 +41,7 @@ void TransientLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int
     g.strokePath(trackArc, juce::PathStrokeType(trackWidth, juce::PathStrokeType::curved,
                                                  juce::PathStrokeType::rounded));
 
-    // Value arc (filled portion, accent)
+    // Value arc
     if (sliderPos > 0.0f)
     {
         juce::Path valueArc;
@@ -61,6 +60,14 @@ void TransientLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int
     pointer.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
     g.setColour(juce::Colour(ACCENT_BRIGHT));
     g.fillPath(pointer);
+
+    // Focus ring — keyboard accessibility indicator
+    if (slider.hasKeyboardFocus(true))
+    {
+        g.setColour(juce::Colour(ACCENT_BRIGHT).withAlpha(0.4f));
+        g.drawEllipse(centreX - radius - 2.0f, centreY - radius - 2.0f,
+                      (radius + 2.0f) * 2.0f, (radius + 2.0f) * 2.0f, 1.5f);
+    }
 }
 
 void TransientLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,

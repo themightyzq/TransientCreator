@@ -7,7 +7,7 @@ TransientCreatorEditor::TransientCreatorEditor(TransientCreatorProcessor& p)
     addAndMakeVisible(mainPanel);
     setSize(650, 420);
     setResizable(true, true);
-    setResizeLimits(520, 336, 1300, 840);
+    setResizeLimits(546, 352, 1300, 840);
     getConstrainer()->setFixedAspectRatio(650.0 / 420.0);
 }
 
