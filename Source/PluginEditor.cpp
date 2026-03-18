@@ -1,7 +1,7 @@
 #include "PluginEditor.h"
 
 TransientCreatorEditor::TransientCreatorEditor(TransientCreatorProcessor& p)
-    : AudioProcessorEditor(&p), processorRef(p)
+    : AudioProcessorEditor(&p), processorRef(p), mainPanel(p.apvts)
 {
     juce::ignoreUnused(processorRef);
     addAndMakeVisible(mainPanel);
@@ -15,7 +15,7 @@ TransientCreatorEditor::~TransientCreatorEditor() = default;
 
 void TransientCreatorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff0f3460));
+    g.fillAll(juce::Colour(0xff0a0e1a));
 }
 
 void TransientCreatorEditor::resized()
