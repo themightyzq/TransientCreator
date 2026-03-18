@@ -83,14 +83,22 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     pitchShiftSmoothed.setTargetValue(pitchShiftParam->load());
     mixSmoothed.setTargetValue(mixParam->load());
 
-    // Discrete parameters — read once per block (no smoothing needed)
-    // These will be passed to TransientEngine in Phase 3
-    // const int currentShape     = static_cast<int>(shapeParam->load());
-    // const bool syncEnabled     = syncEnabledParam->load() >= 0.5f;
-    // const int currentSyncNote  = static_cast<int>(syncNoteParam->load());
-    // const int currentInputMode = static_cast<int>(inputModeParam->load());
+    // Read discrete parameters once per block (no smoothing needed)
+    const auto currentShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
+    // const bool syncEnabled     = syncEnabledParam->load() >= 0.5f;  // Phase 5
+    // const int currentSyncNote  = static_cast<int>(syncNoteParam->load());  // Phase 5
+    const auto currentInputMode = static_cast<TransientEngine::InputMode>(static_cast<int>(inputModeParam->load()));
 
-    // Stub: passthrough — TransientEngine processing added in Phase 3
+    // Push parameters to engine (skip smoothed per-sample reads for now —
+    // use block-level snapshot; per-sample smoothing inside engine can be added later)
+    transientEngine.setTailLength(tailLengthSmoothed.getNextValue());
+    transientEngine.setSilenceGap(silenceGapSmoothed.getNextValue());
+    transientEngine.setShape(currentShape);
+    transientEngine.setIntensity(intensitySmoothed.getNextValue());
+    transientEngine.setPitchShift(pitchShiftSmoothed.getNextValue());
+    transientEngine.setMix(mixSmoothed.getNextValue());
+    transientEngine.setInputMode(currentInputMode);
+
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 }
 
