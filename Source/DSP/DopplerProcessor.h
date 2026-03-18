@@ -28,7 +28,7 @@ private:
     static constexpr int   INTERPOLATION_GUARD = 4;       // Extra samples for cubic interpolation
     static constexpr float MIN_DELAY_SAMPLES   = 1.0f;    // Minimum delay to avoid zero-delay artifacts
     static constexpr float MAX_PITCH_SEMITONES  = 24.0f;  // Maximum supported pitch shift
-    static constexpr float MAX_TAIL_MS          = 500.0f;  // Maximum tail length
+    static constexpr float MAX_TAIL_MS          = 5000.0f; // Maximum tail length
 
     // State
     double currentSampleRate = 44100.0;

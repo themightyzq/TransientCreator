@@ -53,6 +53,10 @@ float EnvelopeGenerator::getNextSample()
 
         output = computeEnvelopeSample();
 
+        // Apply onset fade-in to prevent click at transient start
+        if (sampleIndex < fadeInSamples && fadeInSamples > 0)
+            output *= static_cast<float>(sampleIndex) / static_cast<float>(fadeInSamples);
+
         // Apply crossfade at re-trigger boundary
         if (crossfading)
         {
@@ -75,6 +79,10 @@ float EnvelopeGenerator::getNextSample()
 
             // Return the first sample of the new tail
             output = computeEnvelopeSample();
+
+            // Apply onset fade-in (sampleIndex is 0 here, so output *= 0)
+            if (fadeInSamples > 0)
+                output *= static_cast<float>(sampleIndex) / static_cast<float>(fadeInSamples);
 
             if (crossfading)
             {
@@ -132,6 +140,10 @@ void EnvelopeGenerator::recalculateSampleCounts()
 {
     tailSamples = std::max(1, static_cast<int>((tailLengthMs / 1000.0f) * currentSampleRate));
     gapSamples  = std::max(0, static_cast<int>((silenceGapMs / 1000.0f) * currentSampleRate));
+
+    // Onset fade-in duration (capped to half the tail so short tails still work)
+    fadeInSamples = std::min(static_cast<int>((FADE_IN_MS / 1000.0f) * currentSampleRate),
+                             tailSamples / 2);
 
     const float T = static_cast<float>(tailSamples);
 

@@ -61,6 +61,7 @@ private:
     static constexpr float PERCUSSIVE_BODY_DROP  = 0.3f;    // Body drops to 0.7 amplitude
     static constexpr float GAUSSIAN_SIGMA_RATIO  = 0.25f;   // sigma = T / 4
     static constexpr int   CROSSFADE_SAMPLES     = 32;      // Anti-click crossfade length
+    static constexpr float FADE_IN_MS            = 1.0f;    // Onset fade-in to prevent click
 
     // State
     State currentState = State::Silence;
@@ -85,6 +86,9 @@ private:
     float percAttackSamples  = 0.0f;
     float percBodySamples    = 0.0f;
     float percDecayRate      = 0.0f;
+
+    // Onset fade-in (applied at the very start of each transient)
+    int fadeInSamples = 0;
 
     // Crossfade state for anti-aliasing at re-trigger boundaries
     bool crossfading = false;

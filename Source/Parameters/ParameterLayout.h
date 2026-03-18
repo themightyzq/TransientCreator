@@ -36,7 +36,7 @@ namespace ParamDefaults
 {
     // Tail Length (ms)
     inline constexpr float TAIL_LENGTH_MIN     = 5.0f;
-    inline constexpr float TAIL_LENGTH_MAX     = 500.0f;
+    inline constexpr float TAIL_LENGTH_MAX     = 5000.0f;
     inline constexpr float TAIL_LENGTH_DEFAULT = 50.0f;
     inline constexpr float TAIL_LENGTH_SKEW    = 0.4f;  // Skew toward lower values
 
