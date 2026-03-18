@@ -185,7 +185,12 @@
 - [x] Feat 4F: Doppler Direction parameter (Recede/Approach/Fly-by, exponential curve per mode)
 - [x] Feat 4G: Pre-Delay parameter (0–50ms, circular delay buffer for groove shaping)
 - [x] Feat 4H: Humanize parameter (0–100%, ±20% per-cycle jitter on tail/gap timing)
-- [ ] Phase 5: Add UI controls for all Phase 4 parameters (pending)
+- [x] Phase 5: Add UI controls for all Phase 4 parameters
+  - [x] 5A: Expand editor to 650x420
+  - [x] 5B: Add 8 new knobs + Doppler Direction dropdown + all APVTS attachments
+  - [x] 5C: Reorganize layout into 5 rows (Source/Timing/Shape/Output/Toggles) with section labels
+  - [x] 5D: Update EnvelopeVisualizer to show attack phase and tension warping
+  - [x] 5E: Conditional visibility (Doppler→Pitch+Direction, Sine→Freq, Sync→Note/Gap grey)
 
 ---
 
