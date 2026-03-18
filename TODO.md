@@ -52,8 +52,8 @@
 ---
 
 ## Phase 2: Envelope Generator
-- [ ] Create DSP/EnvelopeGenerator.h with `EnvelopeShape` enum matching parameter choices
-- [ ] Implement base envelope interface:
+- [x] Create DSP/EnvelopeGenerator.h with `EnvelopeShape` enum matching parameter choices
+- [x] Implement base envelope interface:
   - `void prepare(double sampleRate)`
   - `void trigger()` — starts a new transient cycle
   - `float getNextSample()` — returns envelope amplitude for current sample
@@ -61,15 +61,15 @@
   - `void setTailLength(float ms)`
   - `void setSilenceGap(float ms)`
   - `void setShape(EnvelopeShape shape)`
-- [ ] Implement Exponential Decay: `amplitude = exp(-t * decayRate)` where decayRate is derived from tail length
-- [ ] Implement Linear Decay: `amplitude = 1.0 - (t / tailSamples)`
-- [ ] Implement Logarithmic Decay: `amplitude = 1.0 - log(1 + t * k) / log(1 + tailSamples * k)`
-- [ ] Implement Reverse Sawtooth: instant max, linear drop, hard cutoff at tail end
-- [ ] Implement Gaussian Pulse: `amplitude = exp(-0.5 * ((t - center) / sigma)^2)` centered at start
-- [ ] Implement Double Tap: two exponential pulses with configurable inter-tap spacing
-- [ ] Implement Percussive: fast exponential attack (~1ms), short resonant body, exponential decay
-- [ ] Ensure ALL envelopes produce sample-accurate zero-crossings at boundaries (no clicks)
-- [ ] Anti-aliasing: apply short crossfade (~32 samples) at transient re-trigger boundaries
+- [x] Implement Exponential Decay: `amplitude = exp(-t * decayRate)` where decayRate is derived from tail length
+- [x] Implement Linear Decay: `amplitude = 1.0 - (t / tailSamples)`
+- [x] Implement Logarithmic Decay: `amplitude = 1.0 - log(1 + t * k) / log(1 + tailSamples * k)`
+- [x] Implement Reverse Sawtooth: instant max, linear drop, hard cutoff at tail end
+- [x] Implement Gaussian Pulse: `amplitude = exp(-0.5 * ((t - center) / sigma)^2)` centered at start
+- [x] Implement Double Tap: two exponential pulses with configurable inter-tap spacing
+- [x] Implement Percussive: fast exponential attack (~1ms), short resonant body, exponential decay
+- [x] Ensure ALL envelopes produce sample-accurate zero-crossings at boundaries (no clicks)
+- [x] Anti-aliasing: apply short crossfade (~32 samples) at transient re-trigger boundaries
 - [ ] Write unit tests for each envelope shape (verify amplitude range, duration accuracy, boundary behavior)
 
 ---
