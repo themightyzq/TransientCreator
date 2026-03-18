@@ -75,22 +75,22 @@
 ---
 
 ## Phase 3: Transient Engine (Core DSP Loop)
-- [ ] Create DSP/TransientEngine.h — the master DSP coordinator
-- [ ] Implement `prepare(double sampleRate, int maxBlockSize)` — pre-allocate all buffers
-- [ ] Implement the core looping state machine:
+- [x] Create DSP/TransientEngine.h — the master DSP coordinator
+- [x] Implement `prepare(double sampleRate, int maxBlockSize)` — pre-allocate all buffers
+- [x] Implement the core looping state machine:
   - State: PLAYING_TAIL — envelope is active, modulating audio
   - State: IN_SILENCE — gap between transients, output silence or pass-through at reduced level
   - State: TRIGGERING — transition sample, fire envelope.trigger() and enter PLAYING_TAIL
-- [ ] Implement `processBlock(juce::AudioBuffer<float>&, int numSamples)`:
+- [x] Implement `processBlock(juce::AudioBuffer<float>&, int numSamples)`:
   - For each sample: advance state machine, get envelope value, apply to audio
   - Per-sample processing for sample-accurate transient timing
-- [ ] Implement Input Mode routing:
+- [x] Implement Input Mode routing:
   - External Audio: process the incoming buffer directly
   - White Noise: generate via `juce::Random` (pre-seeded, deterministic for reproducibility)
   - Pink Noise: use Voss-McCartney or Paul Kellet's algorithm
   - Sine Oscillator: simple phase-accumulator sine at configurable frequency
-- [ ] Implement dry/wet mix: `output = dry * (1 - mix) + wet * mix`
-- [ ] Ensure processBlock handles mono AND stereo (and arbitrary channel counts gracefully)
+- [x] Implement dry/wet mix: `output = dry * (1 - mix) + wet * mix`
+- [x] Ensure processBlock handles mono AND stereo (and arbitrary channel counts gracefully)
 - [ ] Test: continuous looping produces transients at correct intervals (measure with sample counter)
 - [ ] Test: no audio glitches at buffer boundaries
 - [ ] Test: works at 44.1k, 48k, 88.2k, 96k, and 192k sample rates
