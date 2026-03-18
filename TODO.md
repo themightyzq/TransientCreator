@@ -194,6 +194,17 @@
 
 ---
 
+## Phase 7A: Envelope Shape Overhaul
+- [x] 7A-1: Change default tail length from 50ms to 150ms
+- [x] 7A-2: Add Sustain/Hold parameter (0–50%, injects hold phase between attack and decay)
+- [x] 7A-3: Fix Logarithmic shape — replaced front-loaded log with power curve (curvature 3.0)
+- [x] 7A-4: Widen Gaussian — sigma ratio 0.25 → 0.45 for distinct bell shape
+- [x] 7A-5: Differentiate Reverse Sawtooth — 12% hold plateau then steep drop (was identical to Linear)
+- [x] 7A-6: Fix Double Tap — spacing 30%→18%, threshold -60dB→-40dB, decay span 50%→60% per tap
+- [x] 7A-7: Remove 7 dead method declarations + logDenominator member from EnvelopeGenerator
+
+---
+
 ## Phase 8: Testing & Validation
 - [ ] Unit tests for all envelope shapes (EnvelopeGeneratorTests.cpp)
 - [ ] Unit tests for TransientEngine state machine (TransientEngineTests.cpp)

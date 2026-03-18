@@ -241,6 +241,7 @@ void TransientEngine::setPreDelay(float ms)
 }
 
 void TransientEngine::setHumanize(float percent) { envelope.setHumanize(percent); }
+void TransientEngine::setSustainHold(float percent) { envelope.setSustainHold(percent); }
 
 // ---------------------------------------------------------------------------
 // Internal source generators

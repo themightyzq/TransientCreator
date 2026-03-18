@@ -26,7 +26,7 @@ private:
     // --- Phase 4 new knobs ---
     juce::Slider attackTimeSlider, transientGainSlider, tensionSlider;
     juce::Slider hpfSlider, lpfSlider, sineFreqSlider;
-    juce::Slider preDelaySlider, humanizeSlider;
+    juce::Slider preDelaySlider, humanizeSlider, sustainHoldSlider;
 
     // --- Labels ---
     juce::Label tailLengthLabel, silenceGapLabel, intensityLabel;
@@ -34,7 +34,7 @@ private:
     juce::Label shapeLabel, syncNoteLabel, inputModeLabel;
     juce::Label attackTimeLabel, transientGainLabel, tensionLabel;
     juce::Label hpfLabel, lpfLabel, sineFreqLabel;
-    juce::Label dopplerDirLabel, preDelayLabel, humanizeLabel;
+    juce::Label dopplerDirLabel, preDelayLabel, humanizeLabel, sustainHoldLabel;
 
     // --- Dropdowns ---
     juce::ComboBox shapeSelector, syncNoteSelector, inputModeSelector;
@@ -58,6 +58,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sineFreqAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> preDelayAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> humanizeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainHoldAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> shapeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> syncNoteAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> inputModeAttachment;

@@ -33,6 +33,7 @@ TransientCreatorProcessor::TransientCreatorProcessor()
     dopplerDirParam      = apvts.getRawParameterValue(ParamIDs::DOPPLER_DIRECTION);
     preDelayParam        = apvts.getRawParameterValue(ParamIDs::PRE_DELAY);
     humanizeParam        = apvts.getRawParameterValue(ParamIDs::HUMANIZE);
+    sustainHoldParam     = apvts.getRawParameterValue(ParamIDs::SUSTAIN_HOLD);
 }
 
 TransientCreatorProcessor::~TransientCreatorProcessor() = default;
@@ -154,6 +155,7 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     transientEngine.setDopplerDirection(dopplerDir);
     transientEngine.setPreDelay(preDelayParam->load());
     transientEngine.setHumanize(humanizeParam->load());
+    transientEngine.setSustainHold(sustainHoldParam->load());
 
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 

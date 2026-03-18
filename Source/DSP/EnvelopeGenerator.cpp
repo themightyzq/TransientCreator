@@ -5,7 +5,6 @@ using namespace EnvelopeConstants;
 void EnvelopeGenerator::prepare(double sampleRate)
 {
     currentSampleRate = sampleRate;
-
     cachedTailLengthMs = -1.0f;
     cachedSilenceGapMs = -1.0f;
     recalculateSampleCounts();
@@ -29,19 +28,15 @@ void EnvelopeGenerator::trigger()
     sampleIndex = 0;
     justTriggered = true;
 
-    // Apply humanize jitter per-cycle
     if (humanizeAmount > 0.0f)
     {
         const float variation = humanizeAmount * HUMANIZE_VARIATION;
         const float tailJitter = 1.0f + (humanizeRng.nextFloat() * 2.0f - 1.0f) * variation;
         const float gapJitter  = 1.0f + (humanizeRng.nextFloat() * 2.0f - 1.0f) * variation;
 
-        tailSamples = std::max(1, static_cast<int>(
-            static_cast<float>(tailSamples) * tailJitter));
-        gapSamples  = std::max(0, static_cast<int>(
-            static_cast<float>(gapSamples) * gapJitter));
+        tailSamples = std::max(1, static_cast<int>(static_cast<float>(tailSamples) * tailJitter));
+        gapSamples  = std::max(0, static_cast<int>(static_cast<float>(gapSamples) * gapJitter));
 
-        // Recalculate coefficients for jittered tail
         recalculateCoefficients();
     }
 
@@ -75,7 +70,6 @@ float EnvelopeGenerator::getNextSample()
         {
             const float fadeFactor = static_cast<float>(crossfadeIndex) / static_cast<float>(CROSSFADE_SAMPLES);
             output = previousEndAmplitude * (1.0f - fadeFactor) + output * fadeFactor;
-
             ++crossfadeIndex;
             if (crossfadeIndex >= CROSSFADE_SAMPLES)
                 crossfading = false;
@@ -88,7 +82,6 @@ float EnvelopeGenerator::getNextSample()
         if (sampleIndex >= gapSamples)
         {
             trigger();
-
             output = computeEnvelopeSample();
 
             if (crossfading)
@@ -112,10 +105,7 @@ float EnvelopeGenerator::getNextSample()
     return output;
 }
 
-bool EnvelopeGenerator::isInTail() const
-{
-    return currentState == State::Tail;
-}
+bool EnvelopeGenerator::isInTail() const { return currentState == State::Tail; }
 
 void EnvelopeGenerator::setTailLength(float ms)
 {
@@ -133,25 +123,15 @@ void EnvelopeGenerator::setSilenceGap(float ms)
     recalculateSampleCounts();
 }
 
-void EnvelopeGenerator::setShape(EnvelopeShape shape)
-{
-    currentShape = shape;
-}
+void EnvelopeGenerator::setShape(EnvelopeShape shape) { currentShape = shape; }
+void EnvelopeGenerator::setAttackTime(float ms) { attackTimeMs = ms; recalculateSampleCounts(); }
+void EnvelopeGenerator::setTension(float t) { tension = t; }
+void EnvelopeGenerator::setHumanize(float percent) { humanizeAmount = percent * 0.01f; }
 
-void EnvelopeGenerator::setAttackTime(float ms)
+void EnvelopeGenerator::setSustainHold(float percent)
 {
-    attackTimeMs = ms;
+    sustainHoldPercent = percent;
     recalculateSampleCounts();
-}
-
-void EnvelopeGenerator::setTension(float t)
-{
-    tension = t;
-}
-
-void EnvelopeGenerator::setHumanize(float percent)
-{
-    humanizeAmount = percent * 0.01f;  // Convert 0-100% to 0.0-1.0
 }
 
 // ---------------------------------------------------------------------------
@@ -160,7 +140,7 @@ void EnvelopeGenerator::setHumanize(float percent)
 
 float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeShape shape,
                                                    float referenceTailSamples, float tens,
-                                                   float attackFraction)
+                                                   float attackFraction, float holdFrac)
 {
     // Attack phase: raised-cosine ramp
     if (attackFraction > 0.0f && normalizedPos < attackFraction)
@@ -172,11 +152,14 @@ float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeS
         return attackEnv;
     }
 
-    // Decay phase: remap normalizedPos to decay portion
-    const float decayFraction = 1.0f - attackFraction;
-    const float decayNorm = (decayFraction > 0.0f)
-        ? (normalizedPos - attackFraction) / decayFraction
-        : 0.0f;
+    // Hold phase: flat at 1.0
+    const float holdEnd = attackFraction + holdFrac;
+    if (holdFrac > 0.0f && normalizedPos < holdEnd)
+        return 1.0f;
+
+    // Decay phase: remap to 0.0–1.0 over remaining portion
+    const float decayFraction = 1.0f - holdEnd;
+    const float decayNorm = (decayFraction > 0.0f) ? (normalizedPos - holdEnd) / decayFraction : 0.0f;
     const float t = decayNorm * referenceTailSamples;
     const float T = referenceTailSamples;
 
@@ -192,17 +175,23 @@ float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeS
             break;
         }
         case EnvelopeShape::Linear:
-            raw = 1.0f - (t / T);
+            raw = std::max(0.0f, 1.0f - (t / T));
             break;
         case EnvelopeShape::Logarithmic:
         {
-            const float denom = std::log(1.0f + T * LOG_CURVATURE_K);
-            raw = 1.0f - std::log(1.0f + t * LOG_CURVATURE_K) / denom;
+            const float normalizedT = t / T;
+            raw = std::pow(std::max(0.0f, 1.0f - normalizedT), LOG_POWER_CURVATURE);
             break;
         }
         case EnvelopeShape::ReverseSawtooth:
-            raw = (t < T) ? (1.0f - t / T) : 0.0f;
+        {
+            const float holdEnd2 = T * REVERSE_SAW_HOLD_FRACTION;
+            if (t < holdEnd2)
+                raw = 1.0f;
+            else
+                raw = std::max(0.0f, 1.0f - (t - holdEnd2) / (T - holdEnd2));
             break;
+        }
         case EnvelopeShape::Gaussian:
         {
             const float sigma = T * GAUSSIAN_SIGMA_RATIO;
@@ -212,7 +201,7 @@ float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeS
         }
         case EnvelopeShape::DoubleTap:
         {
-            const float decayRate = -std::log(ENVELOPE_THRESHOLD) / (T * 0.5f);
+            const float decayRate = -std::log(DOUBLE_TAP_THRESHOLD) / (T * DOUBLE_TAP_DECAY_SPAN);
             const float tap1 = std::exp(-t * decayRate);
             float tap2 = 0.0f;
             const float spacing = T * DOUBLE_TAP_SPACING;
@@ -228,9 +217,7 @@ float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeS
             const float percBody = T * PERCUSSIVE_BODY_RATIO;
 
             if (t < percAttack)
-            {
                 raw = (percAttack > 0.0f) ? (t / percAttack) : 1.0f;
-            }
             else
             {
                 const float tAfterAttack = t - percAttack;
@@ -241,19 +228,16 @@ float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeS
                     const float tAfterBody = tAfterAttack - percBody;
                     const float decayLen = T - percAttack - percBody;
                     const float decayRate = (decayLen > 0.0f)
-                        ? -std::log(ENVELOPE_THRESHOLD / (1.0f - PERCUSSIVE_BODY_DROP)) / decayLen
-                        : 0.0f;
+                        ? -std::log(ENVELOPE_THRESHOLD / (1.0f - PERCUSSIVE_BODY_DROP)) / decayLen : 0.0f;
                     raw = (1.0f - PERCUSSIVE_BODY_DROP) * std::exp(-tAfterBody * decayRate);
                 }
             }
             break;
         }
         default:
-            raw = 0.0f;
             break;
     }
 
-    // Apply tension
     if (std::fabs(tens - 1.0f) > 1.0e-6f)
         raw = std::pow(std::max(0.0f, raw), tens);
 
@@ -266,12 +250,16 @@ float EnvelopeGenerator::computeShapeAtNormalized(float normalizedPos, EnvelopeS
 
 void EnvelopeGenerator::recalculateSampleCounts()
 {
-    tailSamples  = std::max(1, static_cast<int>((tailLengthMs / 1000.0f) * currentSampleRate));
-    gapSamples   = std::max(0, static_cast<int>((silenceGapMs / 1000.0f) * currentSampleRate));
-    attackSamples = static_cast<int>((attackTimeMs / 1000.0f) * currentSampleRate);
-    attackSamples = std::min(attackSamples, tailSamples - 1);  // Leave at least 1 sample for decay
-    attackSamples = std::max(0, attackSamples);
-    decaySamples = tailSamples - attackSamples;
+    tailSamples   = std::max(1, static_cast<int>((tailLengthMs / 1000.0f) * currentSampleRate));
+    gapSamples    = std::max(0, static_cast<int>((silenceGapMs / 1000.0f) * currentSampleRate));
+    attackSamples = std::max(0, std::min(
+        static_cast<int>((attackTimeMs / 1000.0f) * currentSampleRate),
+        tailSamples - 1));
+
+    holdSamples = static_cast<int>((sustainHoldPercent / 100.0f) * static_cast<float>(tailSamples));
+    holdSamples = std::max(0, std::min(holdSamples, tailSamples - attackSamples - 1));
+
+    decaySamples = tailSamples - attackSamples - holdSamples;
 
     recalculateCoefficients();
 }
@@ -281,11 +269,10 @@ void EnvelopeGenerator::recalculateCoefficients()
     const float D = static_cast<float>(std::max(1, decaySamples));
 
     expDecayRate = -std::log(ENVELOPE_THRESHOLD) / D;
-    logDenominator = std::log(1.0f + D * LOG_CURVATURE_K);
     gaussianSigma = D * GAUSSIAN_SIGMA_RATIO;
 
     doubleTapSpacingSamples = D * DOUBLE_TAP_SPACING;
-    doubleTapDecayRate = -std::log(ENVELOPE_THRESHOLD) / (D * 0.5f);
+    doubleTapDecayRate = -std::log(DOUBLE_TAP_THRESHOLD) / (D * DOUBLE_TAP_DECAY_SPAN);
 
     percAttackSamples = static_cast<float>(PERCUSSIVE_ATTACK_S * currentSampleRate);
     percBodySamples   = D * PERCUSSIVE_BODY_RATIO;
@@ -298,7 +285,7 @@ void EnvelopeGenerator::recalculateCoefficients()
 
 float EnvelopeGenerator::computeEnvelopeSample() const
 {
-    // Attack phase: raised-cosine ramp from 0 to 1
+    // Attack phase: raised-cosine ramp
     if (attackSamples > 0 && sampleIndex < attackSamples)
     {
         float attackEnv = 0.5f * (1.0f - std::cos(juce::MathConstants<float>::pi
@@ -308,8 +295,13 @@ float EnvelopeGenerator::computeEnvelopeSample() const
         return attackEnv;
     }
 
-    // Decay phase: offset index past the attack
-    const int decayIndex = sampleIndex - attackSamples;
+    // Hold phase: flat at 1.0
+    if (holdSamples > 0 && sampleIndex < (attackSamples + holdSamples))
+        return 1.0f;
+
+    // Decay phase
+    const int decayIndex = sampleIndex - attackSamples - holdSamples;
+    const float D = static_cast<float>(std::max(1, decaySamples));
 
     float raw = 0.0f;
 
@@ -319,25 +311,36 @@ float EnvelopeGenerator::computeEnvelopeSample() const
         case EnvelopeShape::Doppler:
             raw = std::exp(-static_cast<float>(decayIndex) * expDecayRate);
             break;
+
         case EnvelopeShape::Linear:
-            raw = 1.0f - (static_cast<float>(decayIndex) / static_cast<float>(decaySamples));
+            raw = std::max(0.0f, 1.0f - (static_cast<float>(decayIndex) / D));
             break;
+
         case EnvelopeShape::Logarithmic:
-            raw = 1.0f - std::log(1.0f + static_cast<float>(decayIndex) * LOG_CURVATURE_K) / logDenominator;
+        {
+            const float normalizedT = static_cast<float>(decayIndex) / D;
+            raw = std::pow(std::max(0.0f, 1.0f - normalizedT), LOG_POWER_CURVATURE);
             break;
+        }
+
         case EnvelopeShape::ReverseSawtooth:
         {
             const float dt = static_cast<float>(decayIndex);
-            const float D = static_cast<float>(decaySamples);
-            raw = (dt < D) ? (1.0f - dt / D) : 0.0f;
+            const float holdEnd2 = D * REVERSE_SAW_HOLD_FRACTION;
+            if (dt < holdEnd2)
+                raw = 1.0f;
+            else
+                raw = std::max(0.0f, 1.0f - (dt - holdEnd2) / (D - holdEnd2));
             break;
         }
+
         case EnvelopeShape::Gaussian:
         {
             const float ratio = static_cast<float>(decayIndex) / gaussianSigma;
             raw = std::exp(-0.5f * ratio * ratio);
             break;
         }
+
         case EnvelopeShape::DoubleTap:
         {
             const float dt = static_cast<float>(decayIndex);
@@ -348,13 +351,12 @@ float EnvelopeGenerator::computeEnvelopeSample() const
             raw = std::max(tap1, tap2);
             break;
         }
+
         case EnvelopeShape::Percussive:
         {
             const float dt = static_cast<float>(decayIndex);
             if (dt < percAttackSamples)
-            {
                 raw = (percAttackSamples > 0.0f) ? (dt / percAttackSamples) : 1.0f;
-            }
             else
             {
                 const float tAfterAttack = dt - percAttackSamples;
@@ -365,17 +367,13 @@ float EnvelopeGenerator::computeEnvelopeSample() const
             }
             break;
         }
+
         default:
-            raw = 0.0f;
             break;
     }
 
-    // Apply tension curve
     if (std::fabs(tension - 1.0f) > 1.0e-6f)
         raw = std::pow(std::max(0.0f, raw), tension);
 
     return raw;
 }
-
-// Removed individual compute methods — now inlined in computeEnvelopeSample()
-// to support the attack offset and tension in a single location.

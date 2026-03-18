@@ -35,6 +35,7 @@ public:
     void setAttackTime(float ms);
     void setTension(float t);
     void setHumanize(float percent);
+    void setSustainHold(float percent);
 
     bool consumeTriggerFlag()
     {
@@ -43,29 +44,17 @@ public:
         return t;
     }
 
-    // Static visualization method. tension parameter allows visualizer to show warped shape.
+    // Static visualization method with hold fraction support.
     static float computeShapeAtNormalized(float normalizedPos, EnvelopeShape shape,
                                           float referenceTailSamples, float tension = 1.0f,
-                                          float attackFraction = 0.0f);
+                                          float attackFraction = 0.0f, float holdFraction = 0.0f);
 
 private:
-    enum class State
-    {
-        Tail,
-        Silence
-    };
+    enum class State { Tail, Silence };
 
     void recalculateSampleCounts();
     void recalculateCoefficients();
     float computeEnvelopeSample() const;
-
-    float computeExponential() const;
-    float computeLinear() const;
-    float computeLogarithmic() const;
-    float computeReverseSawtooth() const;
-    float computeGaussian() const;
-    float computeDoubleTap() const;
-    float computePercussive() const;
 
     // State
     State currentState = State::Silence;
@@ -73,36 +62,37 @@ private:
     double currentSampleRate = 44100.0;
 
     // Timing (in ms, set by user)
-    float tailLengthMs = 50.0f;
+    float tailLengthMs = 150.0f;
     float silenceGapMs = 100.0f;
     float attackTimeMs = 0.1f;
     float tension = 1.0f;
+    float sustainHoldPercent = 0.0f;
 
     // Humanize
-    float humanizeAmount = 0.0f;  // 0.0–1.0 internal range
+    float humanizeAmount = 0.0f;
     juce::Random humanizeRng { 12345 };
-    static constexpr float HUMANIZE_VARIATION = 0.20f;  // ±20% at max humanize
+    static constexpr float HUMANIZE_VARIATION = 0.20f;
 
     // Parameter caching
     float cachedTailLengthMs = -1.0f;
     float cachedSilenceGapMs = -1.0f;
 
     // Timing (in samples)
-    int tailSamples  = 0;
-    int gapSamples   = 0;
+    int tailSamples   = 0;
+    int gapSamples    = 0;
     int attackSamples = 0;
-    int decaySamples  = 0;  // tailSamples - attackSamples
-    int sampleIndex  = 0;
+    int holdSamples   = 0;
+    int decaySamples  = 0;
+    int sampleIndex   = 0;
 
-    // Pre-computed shape coefficients (based on decaySamples, not tailSamples)
-    float expDecayRate       = 0.0f;
-    float logDenominator     = 1.0f;
-    float gaussianSigma      = 1.0f;
+    // Pre-computed shape coefficients (based on decaySamples)
+    float expDecayRate            = 0.0f;
+    float gaussianSigma           = 1.0f;
     float doubleTapSpacingSamples = 0.0f;
-    float doubleTapDecayRate = 0.0f;
-    float percAttackSamples  = 0.0f;
-    float percBodySamples    = 0.0f;
-    float percDecayRate      = 0.0f;
+    float doubleTapDecayRate      = 0.0f;
+    float percAttackSamples       = 0.0f;
+    float percBodySamples         = 0.0f;
+    float percDecayRate           = 0.0f;
 
     // Trigger flag
     bool justTriggered = false;

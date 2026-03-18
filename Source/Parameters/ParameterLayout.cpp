@@ -204,5 +204,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         ParamDefaults::HUMANIZE_DEFAULT,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
+    // Sustain Hold (%) — 7A
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::SUSTAIN_HOLD, 1 },
+        ParamNames::SUSTAIN_HOLD,
+        juce::NormalisableRange<float>(
+            ParamDefaults::SUSTAIN_HOLD_MIN,
+            ParamDefaults::SUSTAIN_HOLD_MAX,
+            0.1f),
+        ParamDefaults::SUSTAIN_HOLD_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     return layout;
 }

@@ -62,6 +62,7 @@ private:
     std::atomic<float>* dopplerDirParam      = nullptr;
     std::atomic<float>* preDelayParam        = nullptr;
     std::atomic<float>* humanizeParam        = nullptr;
+    std::atomic<float>* sustainHoldParam     = nullptr;
 
     TransientEngine transientEngine;
 

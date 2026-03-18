@@ -42,6 +42,7 @@ public:
     void setDopplerDirection(DopplerProcessor::Direction dir);
     void setPreDelay(float ms);
     void setHumanize(float percent);
+    void setSustainHold(float percent);
 
 private:
     float generateSourceSample();
@@ -62,7 +63,7 @@ private:
     // Doppler
     DopplerProcessor doppler;
     EnvelopeShape currentShape = EnvelopeShape::Exponential;
-    float cachedTailLengthMs = 50.0f;
+    float cachedTailLengthMs = 150.0f;
 
     // Per-sample smoothed parameters
     juce::SmoothedValue<float> intensitySmoothed;
