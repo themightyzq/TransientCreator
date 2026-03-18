@@ -1,6 +1,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+static constexpr float LIMITER_THRESHOLD_DB = 0.0f;
+static constexpr float LIMITER_RELEASE_MS   = 50.0f;
+
 TransientCreatorProcessor::TransientCreatorProcessor()
     : AudioProcessor(BusesProperties()
                          .withInput("Input", juce::AudioChannelSet::stereo(), true)
@@ -36,31 +39,22 @@ void TransientCreatorProcessor::changeProgramName(int, const juce::String&) {}
 
 void TransientCreatorProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Initialize SmoothedValues with current parameter values and ramp time
-    tailLengthSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
-    tailLengthSmoothed.setCurrentAndTargetValue(tailLengthParam->load());
-
-    silenceGapSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
-    silenceGapSmoothed.setCurrentAndTargetValue(silenceGapParam->load());
-
-    intensitySmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
-    intensitySmoothed.setCurrentAndTargetValue(intensityParam->load());
-
-    pitchShiftSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
-    pitchShiftSmoothed.setCurrentAndTargetValue(pitchShiftParam->load());
-
-    mixSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
-    mixSmoothed.setCurrentAndTargetValue(mixParam->load());
-
-    outputGainSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
-    outputGainSmoothed.setCurrentAndTargetValue(outputGainParam->load());
-
     transientEngine.prepare(sampleRate, samplesPerBlock);
+
+    // Prepare juce::dsp::Limiter
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+    limiter.prepare(spec);
+    limiter.setThreshold(LIMITER_THRESHOLD_DB);
+    limiter.setRelease(LIMITER_RELEASE_MS);
 }
 
 void TransientCreatorProcessor::releaseResources()
 {
     transientEngine.reset();
+    limiter.reset();
 }
 
 bool TransientCreatorProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -81,23 +75,15 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Update smoothed parameter targets from atomic caches
-    tailLengthSmoothed.setTargetValue(tailLengthParam->load());
-    silenceGapSmoothed.setTargetValue(silenceGapParam->load());
-    intensitySmoothed.setTargetValue(intensityParam->load());
-    pitchShiftSmoothed.setTargetValue(pitchShiftParam->load());
-    mixSmoothed.setTargetValue(mixParam->load());
-    outputGainSmoothed.setTargetValue(outputGainParam->load());
-
     // Read discrete parameters once per block (no smoothing needed)
     const auto currentShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
     const bool syncEnabled = syncEnabledParam->load() >= 0.5f;
     const int currentSyncNote = static_cast<int>(syncNoteParam->load());
     const auto currentInputMode = static_cast<TransientEngine::InputMode>(static_cast<int>(inputModeParam->load()));
 
-    // Get smoothed continuous parameter values
-    const float tailLengthMs = tailLengthSmoothed.getNextValue();
-    float silenceGapMs = silenceGapSmoothed.getNextValue();
+    // Read continuous parameters directly from atomics — engine does per-sample smoothing
+    const float tailLengthMs = tailLengthParam->load();
+    float silenceGapMs = silenceGapParam->load();
 
     // Host tempo sync: override silence gap to align cycle to beat division
     if (syncEnabled)
@@ -110,8 +96,6 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                 const double bpm = *posInfo->getBpm();
                 if (bpm > 0.0)
                 {
-                    // Note multipliers: 1/1=4.0, 1/2=2.0, 1/4=1.0, 1/8=0.5, 1/16=0.25, 1/32=0.125
-                    //                   1/4T=2/3, 1/8T=1/3, 1/16T=1/6
                     static constexpr double noteMultipliers[] = {
                         4.0, 2.0, 1.0, 0.5, 0.25, 0.125,
                         2.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0
@@ -121,7 +105,6 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                     const double beatDurationMs = 60000.0 / bpm;
                     const double noteDurationMs = beatDurationMs * noteMultipliers[noteIndex];
 
-                    // Silence gap fills remainder of the beat division
                     silenceGapMs = static_cast<float>(
                         std::max(0.0, noteDurationMs - static_cast<double>(tailLengthMs)));
                 }
@@ -129,53 +112,25 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         }
     }
 
-    // Push parameters to engine
+    // Push parameters to engine — raw values, engine smooths internally
     transientEngine.setTailLength(tailLengthMs);
     transientEngine.setSilenceGap(silenceGapMs);
     transientEngine.setShape(currentShape);
-    transientEngine.setIntensity(intensitySmoothed.getNextValue());
-    transientEngine.setPitchShift(pitchShiftSmoothed.getNextValue());
-    transientEngine.setMix(mixSmoothed.getNextValue());
+    transientEngine.setIntensity(intensityParam->load());
+    transientEngine.setPitchShift(pitchShiftParam->load());
+    transientEngine.setMix(mixParam->load());
     transientEngine.setInputMode(currentInputMode);
-    transientEngine.setOutputGain(outputGainSmoothed.getNextValue());
+    transientEngine.setOutputGain(outputGainParam->load());
 
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 
-    // Brickwall peak limiter — absolute final stage in the output chain
-    // Instant attack (gain reduction applied on the same sample), smooth release
+    // juce::dsp::Limiter — absolute final stage in the output chain
     const bool limiterOn = limiterOnParam->load() >= 0.5f;
     if (limiterOn)
     {
-        const int numSamples = buffer.getNumSamples();
-        const int numChannels = buffer.getNumChannels();
-
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            auto* data = buffer.getWritePointer(ch);
-            float gr = limiterGainReduction[ch];
-
-            for (int i = 0; i < numSamples; ++i)
-            {
-                const float absSample = std::fabs(data[i]);
-
-                if (absSample > LIMITER_CEILING)
-                {
-                    // Instant attack: compute required gain reduction for this sample
-                    const float requiredGR = LIMITER_CEILING / absSample;
-                    if (requiredGR < gr)
-                        gr = requiredGR;
-                }
-                else
-                {
-                    // Smooth release back toward 1.0 (no reduction)
-                    gr = gr + (1.0f - gr) * (1.0f - LIMITER_RELEASE_COEFF);
-                }
-
-                data[i] *= gr;
-            }
-
-            limiterGainReduction[ch] = gr;
-        }
+        juce::dsp::AudioBlock<float> block(buffer);
+        juce::dsp::ProcessContextReplacing<float> context(block);
+        limiter.process(context);
     }
 }
 

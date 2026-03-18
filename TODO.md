@@ -165,6 +165,10 @@
 - [x] Add Limiter toggle parameter and UI button
 - [x] Fix: Pitch knob not appearing when Doppler shape selected (resized() not called on visibility change)
 - [x] Fix: Gap knob greyed out when Sync is ON (gap is auto-calculated from tempo)
+- [x] Fix 1A: Replace hand-rolled limiter with juce::dsp::Limiter (true-peak, stereo-linked, sample-rate-aware)
+- [x] Fix 1B: Restructure DopplerProcessor for proper stereo (per-channel buffers, shared sweep)
+- [x] Fix 1C: Fix internal generator double-advance (generate source once per sample, not per channel)
+- [x] Fix 1D: Move SmoothedValues into TransientEngine for proper per-sample smoothing
 
 ---
 

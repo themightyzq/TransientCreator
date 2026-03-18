@@ -4,9 +4,7 @@ void DopplerProcessor::prepare(double sampleRate, int /*maxBlockSize*/)
 {
     currentSampleRate = sampleRate;
 
-    // Pre-allocate buffer for worst case: max tail length at max pitch shift
-    // maxDelay = tailSamples * delayGrowthRate
-    // delayGrowthRate = 1.0 - pow(2.0, -maxPitch / 12.0)
+    // Pre-allocate buffers for worst case: max tail length at max pitch shift
     const float maxTailSamples = (MAX_TAIL_MS / 1000.0f) * static_cast<float>(sampleRate);
     const float maxGrowthRate = 1.0f - std::pow(2.0f, -MAX_PITCH_SEMITONES / 12.0f);
     const int maxDelay = static_cast<int>(maxTailSamples * maxGrowthRate) + INTERPOLATION_GUARD + 1;
@@ -17,14 +15,18 @@ void DopplerProcessor::prepare(double sampleRate, int /*maxBlockSize*/)
         bufferSize *= 2;
 
     bufferMask = bufferSize - 1;
-    delayBuffer.resize(static_cast<size_t>(bufferSize), 0.0f);
+
+    for (int ch = 0; ch < NUM_CHANNELS; ++ch)
+        delayBuffer[ch].resize(static_cast<size_t>(bufferSize), 0.0f);
 
     reset();
 }
 
 void DopplerProcessor::reset()
 {
-    std::fill(delayBuffer.begin(), delayBuffer.end(), 0.0f);
+    for (int ch = 0; ch < NUM_CHANNELS; ++ch)
+        std::fill(delayBuffer[ch].begin(), delayBuffer[ch].end(), 0.0f);
+
     writeIndex = 0;
     currentDelay = MIN_DELAY_SAMPLES;
     delayIncrement = 0.0f;
@@ -39,66 +41,64 @@ void DopplerProcessor::trigger(int tailDurationSamples)
     currentDelay = MIN_DELAY_SAMPLES;
     sweepActive = true;
 
-    // Calculate delay growth rate from pitch shift parameter
     // delayGrowthRate = 1.0 - pow(2.0, -semitones / 12.0)
     const float delayGrowthRate = 1.0f - std::pow(2.0f, -pitchShiftSemitones / 12.0f);
 
-    // Total delay accumulation over the tail: maxDelay = tailSamples * delayGrowthRate
-    // Per-sample increment to reach that linearly
     if (tailSamples > 0)
-        delayIncrement = (static_cast<float>(tailSamples) * delayGrowthRate) / static_cast<float>(tailSamples);
+        delayIncrement = delayGrowthRate;
     else
         delayIncrement = 0.0f;
-
-    // Simplifies to just delayGrowthRate, but keeping the derivation explicit
 }
 
-float DopplerProcessor::processSample(float input)
+void DopplerProcessor::processSampleStereo(float inL, float inR, float& outL, float& outR)
 {
-    // Write input to delay buffer
-    delayBuffer[static_cast<size_t>(writeIndex)] = input;
-
-    float output = input;
+    // Write both channels at the same buffer position
+    delayBuffer[0][static_cast<size_t>(writeIndex)] = inL;
+    delayBuffer[1][static_cast<size_t>(writeIndex)] = inR;
 
     if (sweepActive)
     {
-        // Read from delay buffer at fractional position
+        // Compute read position once — shared by both channels
         const float readPos = static_cast<float>(writeIndex) - currentDelay;
 
-        // Get integer and fractional parts
-        const int readIndex = static_cast<int>(std::floor(readPos));
-        const float frac = readPos - static_cast<float>(readIndex);
+        outL = readFromBuffer(0, readPos);
+        outR = readFromBuffer(1, readPos);
 
-        // Fetch 4 samples for Hermite interpolation (y0, y1, y2, y3)
-        const float y0 = delayBuffer[static_cast<size_t>((readIndex - 1) & bufferMask)];
-        const float y1 = delayBuffer[static_cast<size_t>((readIndex)     & bufferMask)];
-        const float y2 = delayBuffer[static_cast<size_t>((readIndex + 1) & bufferMask)];
-        const float y3 = delayBuffer[static_cast<size_t>((readIndex + 2) & bufferMask)];
-
-        output = hermiteInterpolate(frac, y0, y1, y2, y3);
-
-        // Advance the delay sweep
+        // Advance sweep exactly once per sample
         currentDelay += delayIncrement;
         ++sweepIndex;
 
         if (sweepIndex >= tailSamples)
             sweepActive = false;
     }
+    else
+    {
+        outL = inL;
+        outR = inR;
+    }
 
-    // Advance write pointer
+    // Advance write pointer once per sample
     writeIndex = (writeIndex + 1) & bufferMask;
+}
 
-    return output;
+float DopplerProcessor::readFromBuffer(int channel, float readPos) const
+{
+    const int readIndex = static_cast<int>(std::floor(readPos));
+    const float frac = readPos - static_cast<float>(readIndex);
+
+    const auto& buf = delayBuffer[channel];
+    const float y0 = buf[static_cast<size_t>((readIndex - 1) & bufferMask)];
+    const float y1 = buf[static_cast<size_t>((readIndex)     & bufferMask)];
+    const float y2 = buf[static_cast<size_t>((readIndex + 1) & bufferMask)];
+    const float y3 = buf[static_cast<size_t>((readIndex + 2) & bufferMask)];
+
+    return hermiteInterpolate(frac, y0, y1, y2, y3);
 }
 
 void DopplerProcessor::setPitchShiftSemitones(float semitones)
 {
     pitchShiftSemitones = semitones;
 }
-
-// ---------------------------------------------------------------------------
-// Hermite cubic interpolation — 4-point, 3rd-order
-// ---------------------------------------------------------------------------
 
 float DopplerProcessor::hermiteInterpolate(float frac, float y0, float y1, float y2, float y3) const
 {

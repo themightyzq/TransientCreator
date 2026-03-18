@@ -1,6 +1,8 @@
 #include "TransientEngine.h"
 #include <cmath>
 
+static constexpr float SMOOTHING_TIME_SEC = 0.02f;  // 20ms ramp for per-sample smoothing
+
 TransientEngine::TransientEngine()
 {
     for (int i = 0; i < PINK_NOISE_STAGES; ++i)
@@ -25,18 +27,25 @@ void TransientEngine::prepare(double sampleRate, int maxBlock)
     // Reset pink noise state
     for (int i = 0; i < PINK_NOISE_STAGES; ++i)
         pinkState[i] = 0.0f;
+
+    // Initialize per-sample smoothers
+    intensitySmoothed.reset(sampleRate, SMOOTHING_TIME_SEC);
+    intensitySmoothed.setCurrentAndTargetValue(0.75f);
+
+    mixSmoothed.reset(sampleRate, SMOOTHING_TIME_SEC);
+    mixSmoothed.setCurrentAndTargetValue(1.0f);
+
+    outputGainSmoothed.reset(sampleRate, SMOOTHING_TIME_SEC);
+    outputGainSmoothed.setCurrentAndTargetValue(0.0f);  // 0 dB
 }
 
 void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 {
     const int numChannels = buffer.getNumChannels();
 
-    // Save dry signal for mix processing (only if mix < 1.0)
-    if (mix < 1.0f)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-            dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
-    }
+    // Save dry signal for mix processing
+    for (int ch = 0; ch < numChannels; ++ch)
+        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
     const bool dopplerActive = (currentShape == EnvelopeShape::Doppler);
     bool wasInTail = envelope.isInTail();
@@ -47,56 +56,66 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
         const bool nowInTail = envelope.isInTail();
         if (dopplerActive && nowInTail && !wasInTail)
         {
-            const int tailSamples = static_cast<int>((cachedTailLengthMs / 1000.0f)
-                                                      * static_cast<float>(currentSampleRate));
-            doppler.trigger(tailSamples);
+            const int tailSamps = static_cast<int>((cachedTailLengthMs / 1000.0f)
+                                                    * static_cast<float>(currentSampleRate));
+            doppler.trigger(tailSamps);
         }
         wasInTail = nowInTail;
 
         // Get envelope amplitude for this sample
         const float envelopeValue = envelope.getNextSample();
 
+        // Per-sample smoothed values
+        const float currentIntensity = intensitySmoothed.getNextValue();
+        const float currentMix = mixSmoothed.getNextValue();
+        const float currentGainDb = outputGainSmoothed.getNextValue();
+        const float currentGainLinear = std::pow(10.0f, currentGainDb / 20.0f);
+
         // Compute effective amplitude: blend between passthrough (1.0) and envelope
-        // At intensity=0%: effectiveAmp = 1.0 (no effect)
-        // At intensity=100%: effectiveAmp = envelopeValue (full effect)
-        const float effectiveAmp = 1.0f - intensity + intensity * envelopeValue;
+        const float effectiveAmp = 1.0f - currentIntensity + currentIntensity * envelopeValue;
 
-        for (int ch = 0; ch < numChannels; ++ch)
+        // Fix 1C: Generate internal source sample ONCE per sample step
+        float sourceSample = 0.0f;
+        if (inputMode != InputMode::ExternalAudio)
+            sourceSample = generateSourceSample();
+
+        // Gather input for both channels
+        float inL, inR;
+        if (inputMode == InputMode::ExternalAudio)
         {
-            float inputSample = generateInputSample(ch);
-
-            // For external audio, use the buffer's audio
-            if (inputMode == InputMode::ExternalAudio)
-                inputSample = buffer.getSample(ch, sample);
-
-            // Apply transient envelope
-            float wetSample = inputSample * effectiveAmp;
-
-            // Apply Doppler pitch-shift (per-channel processing through delay line)
-            if (dopplerActive)
-                wetSample = doppler.processSample(wetSample);
-
-            // Write processed sample
-            buffer.setSample(ch, sample, wetSample);
+            inL = buffer.getSample(0, sample);
+            inR = (numChannels > 1) ? buffer.getSample(1, sample) : inL;
         }
-    }
-
-    // Apply dry/wet mix
-    if (mix < 1.0f)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
+        else
         {
-            auto* wet = buffer.getWritePointer(ch);
-            const auto* dry = dryBuffer.getReadPointer(ch);
-
-            for (int i = 0; i < numSamples; ++i)
-                wet[i] = dry[i] * (1.0f - mix) + wet[i] * mix;
+            inL = sourceSample;
+            inR = sourceSample;
         }
-    }
 
-    // Apply output gain
-    if (outputGainLinear != 1.0f)
-        buffer.applyGain(0, numSamples, outputGainLinear);
+        // Apply transient envelope
+        float wetL = inL * effectiveAmp;
+        float wetR = inR * effectiveAmp;
+
+        // Fix 1B: Doppler processes both channels together — sweep advances once
+        if (dopplerActive)
+            doppler.processSampleStereo(wetL, wetR, wetL, wetR);
+
+        // Apply per-sample dry/wet mix
+        const float dryL = dryBuffer.getSample(0, sample);
+        const float dryR = (numChannels > 1) ? dryBuffer.getSample(1, sample) : dryL;
+
+        float outL = dryL * (1.0f - currentMix) + wetL * currentMix;
+        float outR = dryR * (1.0f - currentMix) + wetR * currentMix;
+
+        // Apply per-sample output gain
+        outL *= currentGainLinear;
+        outR *= currentGainLinear;
+
+        // Write output
+        buffer.setSample(0, sample, outL);
+        if (numChannels > 1)
+            buffer.setSample(1, sample, outR);
+    }
 }
 
 void TransientEngine::reset()
@@ -110,7 +129,7 @@ void TransientEngine::reset()
 }
 
 // ---------------------------------------------------------------------------
-// Parameter setters
+// Parameter setters — set target values for smoothers, or update discrete state
 // ---------------------------------------------------------------------------
 
 void TransientEngine::setTailLength(float ms)
@@ -132,7 +151,7 @@ void TransientEngine::setShape(EnvelopeShape shape)
 
 void TransientEngine::setIntensity(float percent)
 {
-    intensity = percent * PERCENT_TO_FRACTION;
+    intensitySmoothed.setTargetValue(percent * PERCENT_TO_FRACTION);
 }
 
 void TransientEngine::setPitchShift(float semitones)
@@ -142,7 +161,7 @@ void TransientEngine::setPitchShift(float semitones)
 
 void TransientEngine::setMix(float percent)
 {
-    mix = percent * PERCENT_TO_FRACTION;
+    mixSmoothed.setTargetValue(percent * PERCENT_TO_FRACTION);
 }
 
 void TransientEngine::setInputMode(InputMode mode)
@@ -152,37 +171,32 @@ void TransientEngine::setInputMode(InputMode mode)
 
 void TransientEngine::setOutputGain(float dB)
 {
-    outputGainLinear = std::pow(10.0f, dB / 20.0f);
+    outputGainSmoothed.setTargetValue(dB);
 }
 
-
 // ---------------------------------------------------------------------------
-// Internal source generators
+// Internal source generators — called once per sample step (Fix 1C)
 // ---------------------------------------------------------------------------
 
-float TransientEngine::generateInputSample(int /*channel*/)
+float TransientEngine::generateSourceSample()
 {
-    // For internal sources, generate a mono sample shared across channels
     switch (inputMode)
     {
-        case InputMode::WhiteNoise:    return generateWhiteNoise();
-        case InputMode::PinkNoise:     return generatePinkNoise();
+        case InputMode::WhiteNoise:     return generateWhiteNoise();
+        case InputMode::PinkNoise:      return generatePinkNoise();
         case InputMode::SineOscillator: return generateSine();
         case InputMode::ExternalAudio:
-        default:                       return 0.0f;
+        default:                        return 0.0f;
     }
 }
 
 float TransientEngine::generateWhiteNoise()
 {
-    // Uniform random in [-1, 1]
     return noiseRng.nextFloat() * 2.0f - 1.0f;
 }
 
 float TransientEngine::generatePinkNoise()
 {
-    // Paul Kellet's refined method — 7 first-order filter stages
-    // Attempt to approximate a -3dB/octave rolloff
     const float white = generateWhiteNoise();
 
     pinkState[0] = 0.99886f * pinkState[0] + white * 0.0555179f;
@@ -197,7 +211,6 @@ float TransientEngine::generatePinkNoise()
 
     pinkState[6] = white * 0.115926f;
 
-    // Normalize to approximately [-1, 1]
     static constexpr float PINK_NOISE_GAIN = 0.11f;
     return pink * PINK_NOISE_GAIN;
 }
@@ -207,7 +220,6 @@ float TransientEngine::generateSine()
     const float sample = std::sin(sinePhase * juce::MathConstants<float>::twoPi);
     sinePhase += sinePhaseInc;
 
-    // Wrap phase to prevent floating-point drift
     if (sinePhase >= 1.0f)
         sinePhase -= 1.0f;
 
