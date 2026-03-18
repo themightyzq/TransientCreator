@@ -85,14 +85,47 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
     // Read discrete parameters once per block (no smoothing needed)
     const auto currentShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
-    // const bool syncEnabled     = syncEnabledParam->load() >= 0.5f;  // Phase 5
-    // const int currentSyncNote  = static_cast<int>(syncNoteParam->load());  // Phase 5
+    const bool syncEnabled = syncEnabledParam->load() >= 0.5f;
+    const int currentSyncNote = static_cast<int>(syncNoteParam->load());
     const auto currentInputMode = static_cast<TransientEngine::InputMode>(static_cast<int>(inputModeParam->load()));
 
-    // Push parameters to engine (skip smoothed per-sample reads for now —
-    // use block-level snapshot; per-sample smoothing inside engine can be added later)
-    transientEngine.setTailLength(tailLengthSmoothed.getNextValue());
-    transientEngine.setSilenceGap(silenceGapSmoothed.getNextValue());
+    // Get smoothed continuous parameter values
+    const float tailLengthMs = tailLengthSmoothed.getNextValue();
+    float silenceGapMs = silenceGapSmoothed.getNextValue();
+
+    // Host tempo sync: override silence gap to align cycle to beat division
+    if (syncEnabled)
+    {
+        if (auto* playHead = getPlayHead())
+        {
+            auto posInfo = playHead->getPosition();
+            if (posInfo.hasValue() && posInfo->getBpm().hasValue())
+            {
+                const double bpm = *posInfo->getBpm();
+                if (bpm > 0.0)
+                {
+                    // Note multipliers: 1/1=4.0, 1/2=2.0, 1/4=1.0, 1/8=0.5, 1/16=0.25, 1/32=0.125
+                    //                   1/4T=2/3, 1/8T=1/3, 1/16T=1/6
+                    static constexpr double noteMultipliers[] = {
+                        4.0, 2.0, 1.0, 0.5, 0.25, 0.125,
+                        2.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0
+                    };
+
+                    const int noteIndex = juce::jlimit(0, 8, currentSyncNote);
+                    const double beatDurationMs = 60000.0 / bpm;
+                    const double noteDurationMs = beatDurationMs * noteMultipliers[noteIndex];
+
+                    // Silence gap fills remainder of the beat division
+                    silenceGapMs = static_cast<float>(
+                        std::max(0.0, noteDurationMs - static_cast<double>(tailLengthMs)));
+                }
+            }
+        }
+    }
+
+    // Push parameters to engine
+    transientEngine.setTailLength(tailLengthMs);
+    transientEngine.setSilenceGap(silenceGapMs);
     transientEngine.setShape(currentShape);
     transientEngine.setIntensity(intensitySmoothed.getNextValue());
     transientEngine.setPitchShift(pitchShiftSmoothed.getNextValue());
