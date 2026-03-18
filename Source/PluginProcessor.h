@@ -52,20 +52,10 @@ private:
     std::atomic<float>* outputGainParam  = nullptr;
     std::atomic<float>* limiterOnParam   = nullptr;
 
-    // SmoothedValue wrappers for continuously-modulated parameters
-    juce::SmoothedValue<float> tailLengthSmoothed;
-    juce::SmoothedValue<float> silenceGapSmoothed;
-    juce::SmoothedValue<float> intensitySmoothed;
-    juce::SmoothedValue<float> pitchShiftSmoothed;
-    juce::SmoothedValue<float> mixSmoothed;
-    juce::SmoothedValue<float> outputGainSmoothed;
-
     TransientEngine transientEngine;
 
-    // Brickwall peak limiter — runs as final output stage
-    static constexpr float LIMITER_CEILING       = 1.0f;    // 0 dBFS
-    static constexpr float LIMITER_RELEASE_COEFF = 0.9995f; // ~10ms release at 44.1k
-    float limiterGainReduction[2] = { 1.0f, 1.0f };
+    // juce::dsp::Limiter — proper true-peak limiting, stereo-linked, sample-rate-aware
+    juce::dsp::Limiter<float> limiter;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransientCreatorProcessor)
 };

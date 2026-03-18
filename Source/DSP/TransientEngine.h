@@ -23,7 +23,7 @@ public:
     void processBlock(juce::AudioBuffer<float>& buffer, int numSamples);
     void reset();
 
-    // Parameter setters (called per-block from PluginProcessor)
+    // Parameter setters (called per-block from PluginProcessor with raw atomic values)
     void setTailLength(float ms);
     void setSilenceGap(float ms);
     void setShape(EnvelopeShape shape);
@@ -34,7 +34,8 @@ public:
     void setOutputGain(float dB);
 
 private:
-    float generateInputSample(int channel);
+    // Generate one mono sample from the internal source (called once per sample step)
+    float generateSourceSample();
     float generateWhiteNoise();
     float generatePinkNoise();
     float generateSine();
@@ -50,15 +51,17 @@ private:
     // Envelope
     EnvelopeGenerator envelope;
 
-    // Doppler pitch-shift processor
+    // Doppler pitch-shift processor (stereo)
     DopplerProcessor doppler;
     EnvelopeShape currentShape = EnvelopeShape::Exponential;
     float cachedTailLengthMs = 50.0f;
 
-    // Parameters (cached per-block)
-    float intensity = 0.75f;   // 0.0–1.0 (converted from percent)
-    float mix       = 1.0f;    // 0.0–1.0 (converted from percent)
-    float outputGainLinear = 1.0f;  // Linear gain from dB parameter
+    // Per-sample smoothed parameters (Fix 1D: smoothing lives in the engine)
+    juce::SmoothedValue<float> intensitySmoothed;
+    juce::SmoothedValue<float> mixSmoothed;
+    juce::SmoothedValue<float> outputGainSmoothed;  // Smoothed in dB, converted per-sample
+
+    // Discrete parameter (no smoothing)
     InputMode inputMode = InputMode::ExternalAudio;
 
     // Internal source generators
