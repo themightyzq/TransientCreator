@@ -97,33 +97,6 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
     // Apply output gain
     if (outputGainLinear != 1.0f)
         buffer.applyGain(0, numSamples, outputGainLinear);
-
-    // Apply brickwall peak limiter
-    if (limiterEnabled)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            auto* data = buffer.getWritePointer(ch);
-            float env = limiterEnvelope[ch];
-
-            for (int i = 0; i < numSamples; ++i)
-            {
-                const float absSample = std::fabs(data[i]);
-
-                // Envelope follower: fast attack, slow release
-                if (absSample > env)
-                    env = absSample + LIMITER_ATTACK_COEFF * (env - absSample);
-                else
-                    env = absSample + LIMITER_RELEASE_COEFF * (env - absSample);
-
-                // Apply gain reduction if envelope exceeds ceiling
-                if (env > LIMITER_CEILING)
-                    data[i] *= LIMITER_CEILING / env;
-            }
-
-            limiterEnvelope[ch] = env;
-        }
-    }
 }
 
 void TransientEngine::reset()
@@ -131,8 +104,6 @@ void TransientEngine::reset()
     envelope.prepare(currentSampleRate);
     doppler.reset();
     sinePhase = 0.0f;
-    limiterEnvelope[0] = 0.0f;
-    limiterEnvelope[1] = 0.0f;
 
     for (int i = 0; i < PINK_NOISE_STAGES; ++i)
         pinkState[i] = 0.0f;
@@ -184,10 +155,6 @@ void TransientEngine::setOutputGain(float dB)
     outputGainLinear = std::pow(10.0f, dB / 20.0f);
 }
 
-void TransientEngine::setLimiterEnabled(bool enabled)
-{
-    limiterEnabled = enabled;
-}
 
 // ---------------------------------------------------------------------------
 // Internal source generators
