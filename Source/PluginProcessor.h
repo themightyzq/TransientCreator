@@ -64,9 +64,8 @@ private:
 
     // Brickwall peak limiter — runs as final output stage
     static constexpr float LIMITER_CEILING       = 1.0f;    // 0 dBFS
-    static constexpr float LIMITER_ATTACK_COEFF  = 0.9995f; // ~0.1ms at 44.1k
-    static constexpr float LIMITER_RELEASE_COEFF = 0.9999f; // ~50ms at 44.1k
-    float limiterEnvelope[2] = { 0.0f, 0.0f };
+    static constexpr float LIMITER_RELEASE_COEFF = 0.9995f; // ~10ms release at 44.1k
+    float limiterGainReduction[2] = { 1.0f, 1.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransientCreatorProcessor)
 };

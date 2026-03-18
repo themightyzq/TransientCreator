@@ -142,6 +142,7 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 
     // Brickwall peak limiter — absolute final stage in the output chain
+    // Instant attack (gain reduction applied on the same sample), smooth release
     const bool limiterOn = limiterOnParam->load() >= 0.5f;
     if (limiterOn)
     {
@@ -151,24 +152,29 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         for (int ch = 0; ch < numChannels; ++ch)
         {
             auto* data = buffer.getWritePointer(ch);
-            float env = limiterEnvelope[ch];
+            float gr = limiterGainReduction[ch];
 
             for (int i = 0; i < numSamples; ++i)
             {
                 const float absSample = std::fabs(data[i]);
 
-                // Envelope follower: fast attack, slow release
-                if (absSample > env)
-                    env = absSample + LIMITER_ATTACK_COEFF * (env - absSample);
+                if (absSample > LIMITER_CEILING)
+                {
+                    // Instant attack: compute required gain reduction for this sample
+                    const float requiredGR = LIMITER_CEILING / absSample;
+                    if (requiredGR < gr)
+                        gr = requiredGR;
+                }
                 else
-                    env = absSample + LIMITER_RELEASE_COEFF * (env - absSample);
+                {
+                    // Smooth release back toward 1.0 (no reduction)
+                    gr = gr + (1.0f - gr) * (1.0f - LIMITER_RELEASE_COEFF);
+                }
 
-                // Apply gain reduction if envelope exceeds ceiling
-                if (env > LIMITER_CEILING)
-                    data[i] *= LIMITER_CEILING / env;
+                data[i] *= gr;
             }
 
-            limiterEnvelope[ch] = env;
+            limiterGainReduction[ch] = gr;
         }
     }
 }
