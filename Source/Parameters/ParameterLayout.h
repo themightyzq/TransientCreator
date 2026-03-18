@@ -13,6 +13,8 @@ namespace ParamIDs
     inline constexpr const char* SYNC_ENABLED   = "syncEnabled";
     inline constexpr const char* SYNC_NOTE      = "syncNote";
     inline constexpr const char* INPUT_MODE     = "inputMode";
+    inline constexpr const char* OUTPUT_GAIN    = "outputGain";
+    inline constexpr const char* LIMITER_ON     = "limiterOn";
 } // namespace ParamIDs
 
 namespace ParamNames
@@ -26,6 +28,8 @@ namespace ParamNames
     inline constexpr const char* SYNC_ENABLED   = "Sync to Host";
     inline constexpr const char* SYNC_NOTE      = "Sync Note Value";
     inline constexpr const char* INPUT_MODE     = "Input Mode";
+    inline constexpr const char* OUTPUT_GAIN    = "Output Gain";
+    inline constexpr const char* LIMITER_ON     = "Limiter";
 } // namespace ParamNames
 
 namespace ParamDefaults
@@ -67,6 +71,14 @@ namespace ParamDefaults
 
     // Input Mode (index into choice list)
     inline constexpr int INPUT_MODE_DEFAULT    = 0;  // External Audio
+
+    // Output Gain (dB)
+    inline constexpr float OUTPUT_GAIN_MIN     = -24.0f;
+    inline constexpr float OUTPUT_GAIN_MAX     = 24.0f;
+    inline constexpr float OUTPUT_GAIN_DEFAULT = 0.0f;
+
+    // Limiter
+    inline constexpr bool LIMITER_ON_DEFAULT   = true;
 
     // Parameter smoothing ramp time (seconds)
     inline constexpr double SMOOTHING_RAMP_SEC = 0.02;  // 20ms

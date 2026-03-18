@@ -160,6 +160,11 @@
 - [ ] Add input/output level meters (optional but nice)
 - [ ] Profile CPU usage — target < 5% single-core at 48kHz stereo
 - [ ] Memory audit: no leaks, no unnecessary allocations after prepareToPlay()
+- [x] Add Output Gain parameter (dB, -24 to +24) for aggressive transient boosting
+- [x] Add brickwall peak limiter (0dBFS ceiling, fast attack, ~50ms release)
+- [x] Add Limiter toggle parameter and UI button
+- [x] Fix: Pitch knob not appearing when Doppler shape selected (resized() not called on visibility change)
+- [x] Fix: Gap knob greyed out when Sync is ON (gap is auto-calculated from tempo)
 
 ---
 

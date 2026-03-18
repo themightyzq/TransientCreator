@@ -87,5 +87,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         inputModeChoices,
         ParamDefaults::INPUT_MODE_DEFAULT));
 
+    // Output Gain (dB)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::OUTPUT_GAIN, 1 },
+        ParamNames::OUTPUT_GAIN,
+        juce::NormalisableRange<float>(
+            ParamDefaults::OUTPUT_GAIN_MIN,
+            ParamDefaults::OUTPUT_GAIN_MAX,
+            0.1f),
+        ParamDefaults::OUTPUT_GAIN_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+
+    // Limiter On/Off (bool)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { ParamIDs::LIMITER_ON, 1 },
+        ParamNames::LIMITER_ON,
+        ParamDefaults::LIMITER_ON_DEFAULT));
+
     return layout;
 }

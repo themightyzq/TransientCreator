@@ -17,6 +17,8 @@ TransientCreatorProcessor::TransientCreatorProcessor()
     syncEnabledParam = apvts.getRawParameterValue(ParamIDs::SYNC_ENABLED);
     syncNoteParam    = apvts.getRawParameterValue(ParamIDs::SYNC_NOTE);
     inputModeParam   = apvts.getRawParameterValue(ParamIDs::INPUT_MODE);
+    outputGainParam  = apvts.getRawParameterValue(ParamIDs::OUTPUT_GAIN);
+    limiterOnParam   = apvts.getRawParameterValue(ParamIDs::LIMITER_ON);
 }
 
 TransientCreatorProcessor::~TransientCreatorProcessor() = default;
@@ -50,6 +52,9 @@ void TransientCreatorProcessor::prepareToPlay(double sampleRate, int samplesPerB
     mixSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
     mixSmoothed.setCurrentAndTargetValue(mixParam->load());
 
+    outputGainSmoothed.reset(sampleRate, ParamDefaults::SMOOTHING_RAMP_SEC);
+    outputGainSmoothed.setCurrentAndTargetValue(outputGainParam->load());
+
     transientEngine.prepare(sampleRate, samplesPerBlock);
 }
 
@@ -82,6 +87,7 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     intensitySmoothed.setTargetValue(intensityParam->load());
     pitchShiftSmoothed.setTargetValue(pitchShiftParam->load());
     mixSmoothed.setTargetValue(mixParam->load());
+    outputGainSmoothed.setTargetValue(outputGainParam->load());
 
     // Read discrete parameters once per block (no smoothing needed)
     const auto currentShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
@@ -131,6 +137,8 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     transientEngine.setPitchShift(pitchShiftSmoothed.getNextValue());
     transientEngine.setMix(mixSmoothed.getNextValue());
     transientEngine.setInputMode(currentInputMode);
+    transientEngine.setOutputGain(outputGainSmoothed.getNextValue());
+    transientEngine.setLimiterEnabled(limiterOnParam->load() >= 0.5f);
 
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 }

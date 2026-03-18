@@ -49,6 +49,8 @@ private:
     std::atomic<float>* syncEnabledParam = nullptr;
     std::atomic<float>* syncNoteParam    = nullptr;
     std::atomic<float>* inputModeParam   = nullptr;
+    std::atomic<float>* outputGainParam  = nullptr;
+    std::atomic<float>* limiterOnParam   = nullptr;
 
     // SmoothedValue wrappers for continuously-modulated parameters
     juce::SmoothedValue<float> tailLengthSmoothed;
@@ -56,6 +58,7 @@ private:
     juce::SmoothedValue<float> intensitySmoothed;
     juce::SmoothedValue<float> pitchShiftSmoothed;
     juce::SmoothedValue<float> mixSmoothed;
+    juce::SmoothedValue<float> outputGainSmoothed;
 
     TransientEngine transientEngine;
 
