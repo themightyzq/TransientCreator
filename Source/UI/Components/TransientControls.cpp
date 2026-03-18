@@ -4,7 +4,7 @@
 
 TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
 {
-    // Cache atomic pointers for conditional visibility checks
+    // Cache atomic pointers for conditional state checks
     shapeParam = apvts.getRawParameterValue(ParamIDs::SHAPE);
     syncParam  = apvts.getRawParameterValue(ParamIDs::SYNC_ENABLED);
 
@@ -23,6 +23,9 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
 
     setupSlider(mixSlider, mixLabel, "Mix");
     mixSlider.setTextValueSuffix(" %");
+
+    setupSlider(outputGainSlider, outputGainLabel, "Gain");
+    outputGainSlider.setTextValueSuffix(" dB");
 
     // --- Dropdowns ---
     shapeSelector.addItemList(shapeChoices, 1);
@@ -43,9 +46,12 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     inputModeLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(inputModeLabel);
 
-    // --- Sync toggle ---
+    // --- Toggles ---
     syncToggle.setButtonText("SYNC");
     addAndMakeVisible(syncToggle);
+
+    limiterToggle.setButtonText("LIMIT");
+    addAndMakeVisible(limiterToggle);
 
     // --- APVTS attachments (must be created AFTER components are set up) ---
     tailLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -58,6 +64,8 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
         apvts, ParamIDs::PITCH_SHIFT, pitchShiftSlider);
     mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         apvts, ParamIDs::MIX, mixSlider);
+    outputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        apvts, ParamIDs::OUTPUT_GAIN, outputGainSlider);
 
     shapeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         apvts, ParamIDs::SHAPE, shapeSelector);
@@ -68,10 +76,14 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
 
     syncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         apvts, ParamIDs::SYNC_ENABLED, syncToggle);
+    limiterAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        apvts, ParamIDs::LIMITER_ON, limiterToggle);
 
-    // Start polling for conditional visibility
-    updateConditionalVisibility();
-    startTimerHz(VISIBILITY_CHECK_HZ);
+    // Initialize conditional state
+    prevPitchVisible = static_cast<int>(shapeParam->load()) == static_cast<int>(EnvelopeShape::Doppler);
+    prevSyncOn = syncParam->load() >= 0.5f;
+    updateConditionalState();
+    startTimerHz(STATE_CHECK_HZ);
 }
 
 TransientControls::~TransientControls()
@@ -92,19 +104,34 @@ void TransientControls::setupSlider(juce::Slider& slider, juce::Label& label, co
 
 void TransientControls::timerCallback()
 {
-    updateConditionalVisibility();
+    updateConditionalState();
 }
 
-void TransientControls::updateConditionalVisibility()
+void TransientControls::updateConditionalState()
 {
     const bool isDoppler = static_cast<int>(shapeParam->load()) == static_cast<int>(EnvelopeShape::Doppler);
     const bool isSyncOn = syncParam->load() >= 0.5f;
 
+    // Pitch knob: visible only in Doppler mode
     pitchShiftSlider.setVisible(isDoppler);
     pitchShiftLabel.setVisible(isDoppler);
 
+    // Note selector: visible only when Sync is ON
     syncNoteSelector.setVisible(isSyncOn);
     syncNoteLabel.setVisible(isSyncOn);
+
+    // Gap knob: disabled (greyed out) when Sync is ON — gap is auto-calculated from tempo
+    silenceGapSlider.setEnabled(!isSyncOn);
+    silenceGapSlider.setAlpha(isSyncOn ? 0.4f : 1.0f);
+    silenceGapLabel.setAlpha(isSyncOn ? 0.4f : 1.0f);
+
+    // Trigger relayout if visibility/state changed
+    const bool needsRelayout = (isDoppler != prevPitchVisible) || (isSyncOn != prevSyncOn);
+    prevPitchVisible = isDoppler;
+    prevSyncOn = isSyncOn;
+
+    if (needsRelayout)
+        resized();
 }
 
 void TransientControls::paint(juce::Graphics& g)
@@ -130,11 +157,11 @@ void TransientControls::resized()
 
     bounds.removeFromTop(4);
 
-    // Middle row: Main knobs (Tail, Gap, Intensity, Pitch, Mix)
+    // Middle row: Main knobs — always show Tail, Gap, Intensity, Mix, Gain; conditionally Pitch
     auto knobRow = bounds.removeFromTop(90);
     {
         const bool pitchVisible = pitchShiftSlider.isVisible();
-        const int numKnobs = pitchVisible ? 5 : 4;
+        const int numKnobs = pitchVisible ? 6 : 5;
         const int knobWidth = knobRow.getWidth() / numKnobs;
 
         auto placeKnob = [&](juce::Slider& slider, juce::Label& label)
@@ -150,11 +177,12 @@ void TransientControls::resized()
         if (pitchVisible)
             placeKnob(pitchShiftSlider, pitchShiftLabel);
         placeKnob(mixSlider, mixLabel);
+        placeKnob(outputGainSlider, outputGainLabel);
     }
 
     bounds.removeFromTop(4);
 
-    // Bottom row: Sync toggle + Note Value
+    // Bottom row: Sync toggle + Note Value + Limiter toggle
     auto bottomRow = bounds.removeFromTop(40);
     {
         auto syncArea = bottomRow.removeFromLeft(80).reduced(4);
@@ -166,5 +194,9 @@ void TransientControls::resized()
             syncNoteLabel.setBounds(noteArea.removeFromTop(16));
             syncNoteSelector.setBounds(noteArea);
         }
+
+        // Limiter toggle on the right side
+        auto limiterArea = bottomRow.removeFromRight(80).reduced(4);
+        limiterToggle.setBounds(limiterArea);
     }
 }
