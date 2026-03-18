@@ -177,6 +177,15 @@
 - [x] Fix 3B: Cache envelope recalculation (skip redundant math when params unchanged)
 - [x] Fix 3C: Remove redundant isActive() method (isInTail() is the single API)
 - [x] Fix 3D: Add proper bypass handling (processBlockBypassed resets limiter state)
+- [x] Feat 4A: Attack Time parameter (0–10ms, raised-cosine ramp, decay uses remaining tail)
+- [x] Feat 4B: Transient Boost parameter (0–24dB, scales with envelope for amplified transients)
+- [x] Feat 4C: Envelope Tension / Curve parameter (0.1–5.0, pow() warp on all shapes + visualizer)
+- [x] Feat 4D: Output HPF/LPF filters (StateVariableTPTFilter, block-based after per-sample loop)
+- [x] Feat 4E: Sine Oscillator Frequency parameter (20–8000Hz, replaces hardcoded 440Hz)
+- [x] Feat 4F: Doppler Direction parameter (Recede/Approach/Fly-by, exponential curve per mode)
+- [x] Feat 4G: Pre-Delay parameter (0–50ms, circular delay buffer for groove shaping)
+- [x] Feat 4H: Humanize parameter (0–100%, ±20% per-cycle jitter on tail/gap timing)
+- [ ] Phase 5: Add UI controls for all Phase 4 parameters (pending)
 
 ---
 

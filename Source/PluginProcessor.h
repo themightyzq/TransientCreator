@@ -40,28 +40,34 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
-    // Caches raw parameter pointers for audio-thread-safe reads (no locking)
-    std::atomic<float>* tailLengthParam  = nullptr;
-    std::atomic<float>* silenceGapParam  = nullptr;
-    std::atomic<float>* intensityParam   = nullptr;
-    std::atomic<float>* pitchShiftParam  = nullptr;
-    std::atomic<float>* mixParam         = nullptr;
-    std::atomic<float>* shapeParam       = nullptr;
-    std::atomic<float>* syncEnabledParam = nullptr;
-    std::atomic<float>* syncNoteParam    = nullptr;
-    std::atomic<float>* inputModeParam   = nullptr;
-    std::atomic<float>* outputGainParam  = nullptr;
-    std::atomic<float>* limiterOnParam   = nullptr;
+    // Caches raw parameter pointers for audio-thread-safe reads
+    std::atomic<float>* tailLengthParam      = nullptr;
+    std::atomic<float>* silenceGapParam      = nullptr;
+    std::atomic<float>* intensityParam       = nullptr;
+    std::atomic<float>* pitchShiftParam      = nullptr;
+    std::atomic<float>* mixParam             = nullptr;
+    std::atomic<float>* shapeParam           = nullptr;
+    std::atomic<float>* syncEnabledParam     = nullptr;
+    std::atomic<float>* syncNoteParam        = nullptr;
+    std::atomic<float>* inputModeParam       = nullptr;
+    std::atomic<float>* outputGainParam      = nullptr;
+    std::atomic<float>* limiterOnParam       = nullptr;
+    // Phase 4 new parameter caches
+    std::atomic<float>* attackTimeParam      = nullptr;
+    std::atomic<float>* transientGainParam   = nullptr;
+    std::atomic<float>* envelopeTensionParam = nullptr;
+    std::atomic<float>* filterHPFParam       = nullptr;
+    std::atomic<float>* filterLPFParam       = nullptr;
+    std::atomic<float>* sineFreqParam        = nullptr;
+    std::atomic<float>* dopplerDirParam      = nullptr;
+    std::atomic<float>* preDelayParam        = nullptr;
+    std::atomic<float>* humanizeParam        = nullptr;
 
     TransientEngine transientEngine;
 
-    // Output limiter: juce::dsp::Compressor configured as a fast limiter,
-    // followed by a hard ceiling clamp as absolute safety net.
+    // Output limiter
     juce::dsp::Compressor<float> limiterCompressor;
-
-    // Hard ceiling: -0.3dBFS — prevents any sample from exceeding this value.
-    // Provides headroom for inter-sample true-peak reconstruction.
-    static constexpr float HARD_CEILING_LINEAR = 0.9661f;  // -0.3 dBFS
+    static constexpr float HARD_CEILING_LINEAR = 0.9661f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransientCreatorProcessor)
 };
