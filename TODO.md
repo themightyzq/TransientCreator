@@ -126,26 +126,26 @@
 ---
 
 ## Phase 6: Basic UI
-- [ ] Design UI layout (target: ~500x350 px default size)
-- [ ] Create TransientLookAndFeel with custom slider, button, and combobox styling
-- [ ] Implement MainPanel as the top-level editor component
-- [ ] Implement TransientControls panel:
-  - [ ] Tail Length knob with ms readout
-  - [ ] Silence Gap knob with ms readout
-  - [ ] Transient Shape dropdown selector
-  - [ ] Intensity knob with % readout
-  - [ ] Pitch Shift knob (visible/enabled only when Doppler shape selected)
-  - [ ] Mix knob with % readout
-  - [ ] Sync toggle button
-  - [ ] Note Value selector (visible/enabled only when Sync is ON)
-  - [ ] Input Mode selector
-- [ ] All controls attached to APVTS via SliderAttachment / ComboBoxAttachment / ButtonAttachment
-- [ ] Implement EnvelopeVisualizer:
-  - [ ] Draws the current envelope shape in real-time
-  - [ ] Shows tail region, silence region, and loop point
-  - [ ] Updates at ~30fps using juce::Timer or async repaint
-  - [ ] Receives envelope shape data from processor via lock-free FIFO or atomic snapshot
-- [ ] Make editor resizable with aspect ratio constraint
+- [x] Design UI layout (target: ~500x350 px default size)
+- [x] Create TransientLookAndFeel with custom slider, button, and combobox styling
+- [x] Implement MainPanel as the top-level editor component
+- [x] Implement TransientControls panel:
+  - [x] Tail Length knob with ms readout
+  - [x] Silence Gap knob with ms readout
+  - [x] Transient Shape dropdown selector
+  - [x] Intensity knob with % readout
+  - [x] Pitch Shift knob (visible/enabled only when Doppler shape selected)
+  - [x] Mix knob with % readout
+  - [x] Sync toggle button
+  - [x] Note Value selector (visible/enabled only when Sync is ON)
+  - [x] Input Mode selector
+- [x] All controls attached to APVTS via SliderAttachment / ComboBoxAttachment / ButtonAttachment
+- [x] Implement EnvelopeVisualizer:
+  - [x] Draws the current envelope shape in real-time
+  - [x] Shows tail region, silence region, and loop point
+  - [x] Updates at ~30fps using juce::Timer or async repaint
+  - [x] Receives envelope shape data from processor via lock-free atomic reads
+- [x] Make editor resizable with aspect ratio constraint
 - [ ] Test: all controls respond correctly and update DSP in real-time
 - [ ] Test: UI renders correctly on Retina/HiDPI displays
 
