@@ -27,26 +27,26 @@
 - [x] Create stub PluginProcessor.h/cpp (inherits juce::AudioProcessor)
 - [x] Create stub PluginEditor.h/cpp (inherits juce::AudioProcessorEditor)
 - [x] Verify the project builds as an empty passthrough plugin
-- [ ] Load in a DAW (or JUCE AudioPluginHost) and confirm it instantiates without crashing
+- [x] Load in a DAW (or JUCE AudioPluginHost) and confirm it instantiates without crashing
 
 ---
 
 ## Phase 1: Parameter System & Core Architecture
-- [ ] Design and document all parameter IDs as string constants in Parameters/ParameterLayout.h
-- [ ] Implement `createParameterLayout()` returning `juce::AudioProcessorValueTreeState::ParameterLayout`
-  - [ ] Tail Length (ms): float, range 5.0–500.0, default 50.0, skew toward lower values
-  - [ ] Silence Gap (ms): float, range 0.0–2000.0, default 100.0
-  - [ ] Transient Shape: choice parameter (Exponential, Linear, Logarithmic, Doppler, ReverseSawtooth, Gaussian, DoubleTap, Percussive)
-  - [ ] Intensity (%): float, range 0.0–100.0, default 75.0
-  - [ ] Pitch Shift (semitones): float, range 0.0–24.0, default 12.0 (only active in Doppler mode)
-  - [ ] Mix (Dry/Wet %): float, range 0.0–100.0, default 100.0
-  - [ ] Sync to Host: bool, default false
-  - [ ] Sync Note Value: choice parameter (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/4T, 1/8T, 1/16T)
-  - [ ] Input Mode: choice parameter (External Audio, White Noise, Pink Noise, Sine Oscillator)
-- [ ] Initialize APVTS in PluginProcessor constructor
-- [ ] Set up parameter listeners or atomic caching for audio-thread-safe reads
-- [ ] Create SmoothedValue wrappers for all continuously-modulated parameters
-- [ ] Implement `getStateInformation()` / `setStateInformation()` for preset save/recall
+- [x] Design and document all parameter IDs as string constants in Parameters/ParameterLayout.h
+- [x] Implement `createParameterLayout()` returning `juce::AudioProcessorValueTreeState::ParameterLayout`
+  - [x] Tail Length (ms): float, range 5.0–500.0, default 50.0, skew toward lower values
+  - [x] Silence Gap (ms): float, range 0.0–2000.0, default 100.0
+  - [x] Transient Shape: choice parameter (Exponential, Linear, Logarithmic, Doppler, ReverseSawtooth, Gaussian, DoubleTap, Percussive)
+  - [x] Intensity (%): float, range 0.0–100.0, default 75.0
+  - [x] Pitch Shift (semitones): float, range 0.0–24.0, default 12.0 (only active in Doppler mode)
+  - [x] Mix (Dry/Wet %): float, range 0.0–100.0, default 100.0
+  - [x] Sync to Host: bool, default false
+  - [x] Sync Note Value: choice parameter (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/4T, 1/8T, 1/16T)
+  - [x] Input Mode: choice parameter (External Audio, White Noise, Pink Noise, Sine Oscillator)
+- [x] Initialize APVTS in PluginProcessor constructor
+- [x] Set up parameter listeners or atomic caching for audio-thread-safe reads
+- [x] Create SmoothedValue wrappers for all continuously-modulated parameters
+- [x] Implement `getStateInformation()` / `setStateInformation()` for preset save/recall
 - [ ] Test: Parameters save and restore correctly across plugin reload
 
 ---
