@@ -4,12 +4,10 @@ void DopplerProcessor::prepare(double sampleRate, int /*maxBlockSize*/)
 {
     currentSampleRate = sampleRate;
 
-    // Pre-allocate buffers for worst case: max tail length at max pitch shift
     const float maxTailSamples = (MAX_TAIL_MS / 1000.0f) * static_cast<float>(sampleRate);
     const float maxGrowthRate = 1.0f - std::pow(2.0f, -MAX_PITCH_SEMITONES / 12.0f);
     const int maxDelay = static_cast<int>(maxTailSamples * maxGrowthRate) + INTERPOLATION_GUARD + 1;
 
-    // Round up to next power of 2 for efficient wrapping
     bufferSize = 1;
     while (bufferSize < maxDelay + 1)
         bufferSize *= 2;
@@ -39,33 +37,31 @@ void DopplerProcessor::trigger(int tailDurationSamples)
 {
     tailSamples = tailDurationSamples;
     sweepIndex = 0;
-    currentDelay = MIN_DELAY_SAMPLES;
     sweepActive = true;
 
     const float delayGrowthRate = 1.0f - std::pow(2.0f, -pitchShiftSemitones / 12.0f);
     maxDelayRange = static_cast<float>(tailSamples) * delayGrowthRate;
     curveNormalization = 1.0f / (1.0f - std::exp(-CURVE_SHAPE));
+
+    // Set initial delay based on direction
+    currentDelay = computeDelay(0.0f);
 }
 
 void DopplerProcessor::processSampleStereo(float inL, float inR, float& outL, float& outR)
 {
-    // Write both channels at the same buffer position
     delayBuffer[0][static_cast<size_t>(writeIndex)] = inL;
     delayBuffer[1][static_cast<size_t>(writeIndex)] = inR;
 
     if (sweepActive)
     {
-        // Compute read position once — shared by both channels
         const float readPos = static_cast<float>(writeIndex) - currentDelay;
 
         outL = readFromBuffer(0, readPos);
         outR = readFromBuffer(1, readPos);
 
-        // Advance sweep — exponential curve: fast pitch change at apex, tapering off
         ++sweepIndex;
         const float progress = static_cast<float>(sweepIndex) / static_cast<float>(tailSamples);
-        currentDelay = MIN_DELAY_SAMPLES + maxDelayRange
-                       * (1.0f - std::exp(-progress * CURVE_SHAPE)) * curveNormalization;
+        currentDelay = computeDelay(progress);
 
         if (sweepIndex >= tailSamples)
             sweepActive = false;
@@ -76,8 +72,54 @@ void DopplerProcessor::processSampleStereo(float inL, float inR, float& outL, fl
         outR = inR;
     }
 
-    // Advance write pointer once per sample
     writeIndex = (writeIndex + 1) & bufferMask;
+}
+
+void DopplerProcessor::setPitchShiftSemitones(float semitones)
+{
+    pitchShiftSemitones = semitones;
+}
+
+void DopplerProcessor::setDirection(Direction dir)
+{
+    direction = dir;
+}
+
+float DopplerProcessor::computeDelay(float progress) const
+{
+    auto expCurve = [this](float p) -> float
+    {
+        return (1.0f - std::exp(-p * CURVE_SHAPE)) * curveNormalization;
+    };
+
+    switch (direction)
+    {
+        case Direction::Recede:
+            // Delay increases: fast pitch drop at apex, tapering off
+            return MIN_DELAY_SAMPLES + maxDelayRange * expCurve(progress);
+
+        case Direction::Approach:
+            // Delay decreases: starts high, pitch rises into apex
+            return MIN_DELAY_SAMPLES + maxDelayRange * expCurve(1.0f - progress);
+
+        case Direction::FlyBy:
+        {
+            // Two halves: approach (delay decreasing) then recede (delay increasing)
+            if (progress < 0.5f)
+            {
+                const float halfProgress = 1.0f - (progress * 2.0f);
+                return MIN_DELAY_SAMPLES + maxDelayRange * expCurve(halfProgress);
+            }
+            else
+            {
+                const float halfProgress = (progress - 0.5f) * 2.0f;
+                return MIN_DELAY_SAMPLES + maxDelayRange * expCurve(halfProgress);
+            }
+        }
+
+        default:
+            return MIN_DELAY_SAMPLES;
+    }
 }
 
 float DopplerProcessor::readFromBuffer(int channel, float readPos) const
@@ -92,11 +134,6 @@ float DopplerProcessor::readFromBuffer(int channel, float readPos) const
     const float y3 = buf[static_cast<size_t>((readIndex + 2) & bufferMask)];
 
     return hermiteInterpolate(frac, y0, y1, y2, y3);
-}
-
-void DopplerProcessor::setPitchShiftSemitones(float semitones)
-{
-    pitchShiftSemitones = semitones;
 }
 
 float DopplerProcessor::hermiteInterpolate(float frac, float y0, float y1, float y2, float y3) const

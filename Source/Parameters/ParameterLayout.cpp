@@ -104,5 +104,105 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         ParamNames::LIMITER_ON,
         ParamDefaults::LIMITER_ON_DEFAULT));
 
+    // --- Phase 4 new parameters ---
+
+    // Attack Time (ms) — 4A
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::ATTACK_TIME, 1 },
+        ParamNames::ATTACK_TIME,
+        juce::NormalisableRange<float>(
+            ParamDefaults::ATTACK_TIME_MIN,
+            ParamDefaults::ATTACK_TIME_MAX,
+            0.01f,
+            ParamDefaults::ATTACK_TIME_SKEW),
+        ParamDefaults::ATTACK_TIME_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
+
+    // Transient Boost (dB) — 4B
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::TRANSIENT_GAIN, 1 },
+        ParamNames::TRANSIENT_GAIN,
+        juce::NormalisableRange<float>(
+            ParamDefaults::TRANSIENT_GAIN_MIN,
+            ParamDefaults::TRANSIENT_GAIN_MAX,
+            0.1f),
+        ParamDefaults::TRANSIENT_GAIN_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+
+    // Envelope Tension / Curve — 4C
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::ENVELOPE_TENSION, 1 },
+        ParamNames::ENVELOPE_TENSION,
+        juce::NormalisableRange<float>(
+            ParamDefaults::ENVELOPE_TENSION_MIN,
+            ParamDefaults::ENVELOPE_TENSION_MAX,
+            0.01f),
+        ParamDefaults::ENVELOPE_TENSION_DEFAULT));
+
+    // HPF Frequency (Hz) — 4D
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::FILTER_HPF_FREQ, 1 },
+        ParamNames::FILTER_HPF_FREQ,
+        juce::NormalisableRange<float>(
+            ParamDefaults::HPF_FREQ_MIN,
+            ParamDefaults::HPF_FREQ_MAX,
+            0.1f,
+            ParamDefaults::HPF_FREQ_SKEW),
+        ParamDefaults::HPF_FREQ_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    // LPF Frequency (Hz) — 4D
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::FILTER_LPF_FREQ, 1 },
+        ParamNames::FILTER_LPF_FREQ,
+        juce::NormalisableRange<float>(
+            ParamDefaults::LPF_FREQ_MIN,
+            ParamDefaults::LPF_FREQ_MAX,
+            0.1f,
+            ParamDefaults::LPF_FREQ_SKEW),
+        ParamDefaults::LPF_FREQ_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    // Sine Oscillator Frequency (Hz) — 4E
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::SINE_FREQ, 1 },
+        ParamNames::SINE_FREQ,
+        juce::NormalisableRange<float>(
+            ParamDefaults::SINE_FREQ_MIN,
+            ParamDefaults::SINE_FREQ_MAX,
+            0.1f,
+            ParamDefaults::SINE_FREQ_SKEW),
+        ParamDefaults::SINE_FREQ_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    // Doppler Direction — 4F
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { ParamIDs::DOPPLER_DIRECTION, 1 },
+        ParamNames::DOPPLER_DIRECTION,
+        dopplerDirectionChoices,
+        ParamDefaults::DOPPLER_DIRECTION_DEFAULT));
+
+    // Pre-Delay (ms) — 4G
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::PRE_DELAY, 1 },
+        ParamNames::PRE_DELAY,
+        juce::NormalisableRange<float>(
+            ParamDefaults::PRE_DELAY_MIN,
+            ParamDefaults::PRE_DELAY_MAX,
+            0.1f),
+        ParamDefaults::PRE_DELAY_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
+
+    // Humanize (%) — 4H
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { ParamIDs::HUMANIZE, 1 },
+        ParamNames::HUMANIZE,
+        juce::NormalisableRange<float>(
+            ParamDefaults::HUMANIZE_MIN,
+            ParamDefaults::HUMANIZE_MAX,
+            0.1f),
+        ParamDefaults::HUMANIZE_DEFAULT,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     return layout;
 }

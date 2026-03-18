@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <juce_core/juce_core.h>
 #include "EnvelopeConstants.h"
 
 enum class EnvelopeShape
@@ -31,9 +32,10 @@ public:
     void setTailLength(float ms);
     void setSilenceGap(float ms);
     void setShape(EnvelopeShape shape);
+    void setAttackTime(float ms);
+    void setTension(float t);
+    void setHumanize(float percent);
 
-    // Returns true once after trigger() is called, then resets.
-    // Used by TransientEngine to sync Doppler sweep to envelope re-trigger.
     bool consumeTriggerFlag()
     {
         bool t = justTriggered;
@@ -41,8 +43,10 @@ public:
         return t;
     }
 
-    // Static method for UI visualization — computes envelope amplitude at a normalized position.
-    static float computeShapeAtNormalized(float normalizedPos, EnvelopeShape shape, float referenceTailSamples);
+    // Static visualization method. tension parameter allows visualizer to show warped shape.
+    static float computeShapeAtNormalized(float normalizedPos, EnvelopeShape shape,
+                                          float referenceTailSamples, float tension = 1.0f,
+                                          float attackFraction = 0.0f);
 
 private:
     enum class State
@@ -52,6 +56,7 @@ private:
     };
 
     void recalculateSampleCounts();
+    void recalculateCoefficients();
     float computeEnvelopeSample() const;
 
     float computeExponential() const;
@@ -70,17 +75,26 @@ private:
     // Timing (in ms, set by user)
     float tailLengthMs = 50.0f;
     float silenceGapMs = 100.0f;
+    float attackTimeMs = 0.1f;
+    float tension = 1.0f;
 
-    // Parameter caching — skip recalculation when values haven't changed
+    // Humanize
+    float humanizeAmount = 0.0f;  // 0.0–1.0 internal range
+    juce::Random humanizeRng { 12345 };
+    static constexpr float HUMANIZE_VARIATION = 0.20f;  // ±20% at max humanize
+
+    // Parameter caching
     float cachedTailLengthMs = -1.0f;
     float cachedSilenceGapMs = -1.0f;
 
-    // Timing (in samples, derived from ms + sample rate)
-    int tailSamples = 0;
-    int gapSamples  = 0;
-    int sampleIndex = 0;
+    // Timing (in samples)
+    int tailSamples  = 0;
+    int gapSamples   = 0;
+    int attackSamples = 0;
+    int decaySamples  = 0;  // tailSamples - attackSamples
+    int sampleIndex  = 0;
 
-    // Pre-computed shape coefficients
+    // Pre-computed shape coefficients (based on decaySamples, not tailSamples)
     float expDecayRate       = 0.0f;
     float logDenominator     = 1.0f;
     float gaussianSigma      = 1.0f;
@@ -90,10 +104,10 @@ private:
     float percBodySamples    = 0.0f;
     float percDecayRate      = 0.0f;
 
-    // Trigger flag for Doppler sync
+    // Trigger flag
     bool justTriggered = false;
 
-    // Crossfade state for anti-aliasing at re-trigger boundaries
+    // Crossfade state
     bool crossfading = false;
     int crossfadeIndex = 0;
     float previousEndAmplitude = 0.0f;

@@ -23,7 +23,7 @@ public:
     void processBlock(juce::AudioBuffer<float>& buffer, int numSamples);
     void reset();
 
-    // Parameter setters (called per-block from PluginProcessor with raw atomic values)
+    // Parameter setters (called per-block from PluginProcessor)
     void setTailLength(float ms);
     void setSilenceGap(float ms);
     void setShape(EnvelopeShape shape);
@@ -32,49 +32,67 @@ public:
     void setMix(float percent);
     void setInputMode(InputMode mode);
     void setOutputGain(float dB);
+    // Phase 4 new setters
+    void setAttackTime(float ms);
+    void setTransientGain(float dB);
+    void setTension(float t);
+    void setHPFFrequency(float hz);
+    void setLPFFrequency(float hz);
+    void setSineFrequency(float hz);
+    void setDopplerDirection(DopplerProcessor::Direction dir);
+    void setPreDelay(float ms);
+    void setHumanize(float percent);
 
 private:
-    // Generate one mono sample from the internal source (called once per sample step)
     float generateSourceSample();
     float generateWhiteNoise();
     float generatePinkNoise();
     float generateSine();
 
-    // DSP constants
-    static constexpr float SINE_FREQUENCY_HZ       = 440.0f;    // A4 for internal oscillator
-    static constexpr float PERCENT_TO_FRACTION      = 0.01f;     // Convert 0-100% to 0.0-1.0
+    static constexpr float PERCENT_TO_FRACTION = 0.01f;
+    static constexpr int   NUM_CHANNELS        = 2;
+    static constexpr float PRE_DELAY_MAX_MS    = 50.0f;
 
-    // State
     double currentSampleRate = 44100.0;
     int currentMaxBlockSize = 512;
 
     // Envelope
     EnvelopeGenerator envelope;
 
-    // Doppler pitch-shift processor (stereo)
+    // Doppler
     DopplerProcessor doppler;
     EnvelopeShape currentShape = EnvelopeShape::Exponential;
     float cachedTailLengthMs = 50.0f;
 
-    // Per-sample smoothed parameters (Fix 1D: smoothing lives in the engine)
+    // Per-sample smoothed parameters
     juce::SmoothedValue<float> intensitySmoothed;
     juce::SmoothedValue<float> mixSmoothed;
-    juce::SmoothedValue<float> outputGainSmoothed;  // Smoothed in dB, converted per-sample
+    juce::SmoothedValue<float> outputGainSmoothed;
+    juce::SmoothedValue<float> transientGainSmoothed;
 
-    // Discrete parameter (no smoothing)
+    // Discrete parameter
     InputMode inputMode = InputMode::ExternalAudio;
 
     // Internal source generators
-    juce::Random noiseRng { 42 };  // Pre-seeded for reproducibility
-
-    // Pink noise state — Paul Kellet's refined method (7 first-order filters)
+    juce::Random noiseRng { 42 };
     static constexpr int PINK_NOISE_STAGES = 7;
     float pinkState[PINK_NOISE_STAGES] = {};
+    float sinePhase    = 0.0f;
+    float sinePhaseInc = 0.0f;
 
-    // Sine oscillator
-    float sinePhase     = 0.0f;
-    float sinePhaseInc  = 0.0f;
+    // Output filters — 4D
+    juce::dsp::StateVariableTPTFilter<float> highPassFilter;
+    juce::dsp::StateVariableTPTFilter<float> lowPassFilter;
 
-    // Dry buffer for mix processing (pre-allocated)
+    // Pre-delay — 4G
+    std::vector<float> preDelayBuffer[NUM_CHANNELS];
+    int preDelayWriteIndex = 0;
+    int preDelaySamples    = 0;
+    int preDelayBufferSize = 0;
+    int preDelayBufferMask = 0;
+
+    // Dry buffer for mix processing
     juce::AudioBuffer<float> dryBuffer;
+    // Wet buffer for filter processing
+    juce::AudioBuffer<float> wetBuffer;
 };
