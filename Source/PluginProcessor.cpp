@@ -138,9 +138,39 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     transientEngine.setMix(mixSmoothed.getNextValue());
     transientEngine.setInputMode(currentInputMode);
     transientEngine.setOutputGain(outputGainSmoothed.getNextValue());
-    transientEngine.setLimiterEnabled(limiterOnParam->load() >= 0.5f);
 
     transientEngine.processBlock(buffer, buffer.getNumSamples());
+
+    // Brickwall peak limiter — absolute final stage in the output chain
+    const bool limiterOn = limiterOnParam->load() >= 0.5f;
+    if (limiterOn)
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numChannels = buffer.getNumChannels();
+
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            auto* data = buffer.getWritePointer(ch);
+            float env = limiterEnvelope[ch];
+
+            for (int i = 0; i < numSamples; ++i)
+            {
+                const float absSample = std::fabs(data[i]);
+
+                // Envelope follower: fast attack, slow release
+                if (absSample > env)
+                    env = absSample + LIMITER_ATTACK_COEFF * (env - absSample);
+                else
+                    env = absSample + LIMITER_RELEASE_COEFF * (env - absSample);
+
+                // Apply gain reduction if envelope exceeds ceiling
+                if (env > LIMITER_CEILING)
+                    data[i] *= LIMITER_CEILING / env;
+            }
+
+            limiterEnvelope[ch] = env;
+        }
+    }
 }
 
 void TransientCreatorProcessor::getStateInformation(juce::MemoryBlock& destData)

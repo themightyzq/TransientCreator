@@ -32,7 +32,6 @@ public:
     void setMix(float percent);
     void setInputMode(InputMode mode);
     void setOutputGain(float dB);
-    void setLimiterEnabled(bool enabled);
 
 private:
     float generateInputSample(int channel);
@@ -43,9 +42,6 @@ private:
     // DSP constants
     static constexpr float SINE_FREQUENCY_HZ       = 440.0f;    // A4 for internal oscillator
     static constexpr float PERCENT_TO_FRACTION      = 0.01f;     // Convert 0-100% to 0.0-1.0
-    static constexpr float LIMITER_CEILING          = 1.0f;      // 0 dBFS
-    static constexpr float LIMITER_ATTACK_COEFF     = 0.9995f;   // ~0.1ms at 44.1k
-    static constexpr float LIMITER_RELEASE_COEFF    = 0.9999f;   // ~50ms at 44.1k
 
     // State
     double currentSampleRate = 44100.0;
@@ -63,11 +59,7 @@ private:
     float intensity = 0.75f;   // 0.0–1.0 (converted from percent)
     float mix       = 1.0f;    // 0.0–1.0 (converted from percent)
     float outputGainLinear = 1.0f;  // Linear gain from dB parameter
-    bool limiterEnabled = true;
     InputMode inputMode = InputMode::ExternalAudio;
-
-    // Limiter state (per-channel envelope followers)
-    float limiterEnvelope[2] = { 0.0f, 0.0f };
 
     // Internal source generators
     juce::Random noiseRng { 42 };  // Pre-seeded for reproducibility
