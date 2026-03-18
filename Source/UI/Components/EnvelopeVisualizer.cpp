@@ -7,6 +7,7 @@ EnvelopeVisualizer::EnvelopeVisualizer(juce::AudioProcessorValueTreeState& apvts
     silenceGapParam = apvts.getRawParameterValue(ParamIDs::SILENCE_GAP);
     attackTimeParam = apvts.getRawParameterValue(ParamIDs::ATTACK_TIME);
     tensionParam    = apvts.getRawParameterValue(ParamIDs::ENVELOPE_TENSION);
+    holdParam       = apvts.getRawParameterValue(ParamIDs::SUSTAIN_HOLD);
 
     startTimerHz(REPAINT_HZ);
 }
@@ -36,8 +37,11 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float attackMs  = attackTimeParam->load();
     const float tension   = tensionParam->load();
 
+    const float holdPercent = holdParam->load();
+
     const float referenceTailSamples = (tailMs / 1000.0f) * REFERENCE_RATE;
     const float attackFraction = (tailMs > 0.0f) ? (attackMs / tailMs) : 0.0f;
+    const float holdFraction = holdPercent / 100.0f;
 
     const float totalMs = tailMs + gapMs;
     const float tailFraction = (totalMs > 0.0f) ? (tailMs / totalMs) : TAIL_FRACTION;
@@ -68,7 +72,7 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
         {
             const float tailNorm = normalizedX / tailFraction;
             amplitude = EnvelopeGenerator::computeShapeAtNormalized(
-                tailNorm, shape, referenceTailSamples, tension, attackFraction);
+                tailNorm, shape, referenceTailSamples, tension, attackFraction, holdFraction);
         }
 
         const float px = bounds.getX() + normalizedX * w;

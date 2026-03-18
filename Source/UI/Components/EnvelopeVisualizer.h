@@ -27,4 +27,5 @@ private:
     std::atomic<float>* silenceGapParam = nullptr;
     std::atomic<float>* attackTimeParam = nullptr;
     std::atomic<float>* tensionParam    = nullptr;
+    std::atomic<float>* holdParam       = nullptr;
 };

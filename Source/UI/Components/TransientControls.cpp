@@ -52,6 +52,9 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     setupSlider(humanizeSlider, humanizeLabel, "Human.");
     humanizeSlider.setTextValueSuffix(" %");
 
+    setupSlider(sustainHoldSlider, sustainHoldLabel, "Hold");
+    sustainHoldSlider.setTextValueSuffix(" %");
+
     // --- Dropdowns ---
     shapeSelector.addItemList(shapeChoices, 1);
     addAndMakeVisible(shapeSelector);
@@ -98,6 +101,7 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     sineFreqAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SINE_FREQ, sineFreqSlider);
     preDelayAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::PRE_DELAY, preDelaySlider);
     humanizeAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::HUMANIZE, humanizeSlider);
+    sustainHoldAttachment    = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SUSTAIN_HOLD, sustainHoldSlider);
 
     shapeAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::SHAPE, shapeSelector);
     syncNoteAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::SYNC_NOTE, syncNoteSelector);
@@ -234,10 +238,10 @@ void TransientControls::resized()
 
     bounds.removeFromTop(16); // Space for section label
 
-    // Row 3: Shaping — Intensity, Boost, Curve, Mix [+ Pitch, Freq conditional]
+    // Row 3: Shaping — Intensity, Boost, Curve, Hold, Mix [+ Pitch, Freq conditional]
     auto row3 = bounds.removeFromTop(72);
     {
-        int numKnobs = 4;
+        int numKnobs = 5;
         if (pitchShiftSlider.isVisible()) ++numKnobs;
         if (sineFreqSlider.isVisible()) ++numKnobs;
         const int knobWidth = row3.getWidth() / numKnobs;
@@ -245,6 +249,7 @@ void TransientControls::resized()
         placeKnob(row3, knobWidth, intensitySlider, intensityLabel);
         placeKnob(row3, knobWidth, transientGainSlider, transientGainLabel);
         placeKnob(row3, knobWidth, tensionSlider, tensionLabel);
+        placeKnob(row3, knobWidth, sustainHoldSlider, sustainHoldLabel);
         placeKnob(row3, knobWidth, mixSlider, mixLabel);
         if (pitchShiftSlider.isVisible())
             placeKnob(row3, knobWidth, pitchShiftSlider, pitchShiftLabel);

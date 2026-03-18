@@ -25,6 +25,7 @@ namespace ParamIDs
     inline constexpr const char* DOPPLER_DIRECTION  = "dopplerDirection";
     inline constexpr const char* PRE_DELAY          = "preDelay";
     inline constexpr const char* HUMANIZE           = "humanize";
+    inline constexpr const char* SUSTAIN_HOLD       = "sustainHold";
 } // namespace ParamIDs
 
 namespace ParamNames
@@ -50,6 +51,7 @@ namespace ParamNames
     inline constexpr const char* DOPPLER_DIRECTION  = "Doppler Direction";
     inline constexpr const char* PRE_DELAY          = "Pre-Delay";
     inline constexpr const char* HUMANIZE           = "Humanize";
+    inline constexpr const char* SUSTAIN_HOLD       = "Hold";
 } // namespace ParamNames
 
 namespace ParamDefaults
@@ -57,7 +59,7 @@ namespace ParamDefaults
     // Tail Length (ms)
     inline constexpr float TAIL_LENGTH_MIN     = 5.0f;
     inline constexpr float TAIL_LENGTH_MAX     = 5000.0f;
-    inline constexpr float TAIL_LENGTH_DEFAULT = 50.0f;
+    inline constexpr float TAIL_LENGTH_DEFAULT = 150.0f;
     inline constexpr float TAIL_LENGTH_SKEW    = 0.4f;
 
     // Silence Gap (ms)
@@ -146,6 +148,11 @@ namespace ParamDefaults
     inline constexpr float HUMANIZE_MIN     = 0.0f;
     inline constexpr float HUMANIZE_MAX     = 100.0f;
     inline constexpr float HUMANIZE_DEFAULT = 0.0f;
+
+    // Sustain Hold (%) — 7A
+    inline constexpr float SUSTAIN_HOLD_MIN     = 0.0f;
+    inline constexpr float SUSTAIN_HOLD_MAX     = 50.0f;
+    inline constexpr float SUSTAIN_HOLD_DEFAULT = 0.0f;
 
     // Parameter smoothing ramp time (seconds)
     inline constexpr double SMOOTHING_RAMP_SEC = 0.02;
