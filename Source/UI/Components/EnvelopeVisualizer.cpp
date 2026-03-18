@@ -1,5 +1,4 @@
 #include "EnvelopeVisualizer.h"
-#include <cmath>
 
 EnvelopeVisualizer::EnvelopeVisualizer(juce::AudioProcessorValueTreeState& apvts)
 {
@@ -35,6 +34,9 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float tailMs = tailLengthParam->load();
     const float gapMs  = silenceGapParam->load();
 
+    // Reference tail samples for shape computation (uses fixed reference rate)
+    const float referenceTailSamples = (tailMs / 1000.0f) * REFERENCE_RATE;
+
     // Calculate proportions for tail vs gap display
     const float totalMs = tailMs + gapMs;
     const float tailFraction = (totalMs > 0.0f) ? (tailMs / totalMs) : TAIL_FRACTION;
@@ -52,8 +54,7 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff334155));
     g.drawVerticalLine(static_cast<int>(bounds.getX() + tailWidth), bounds.getY(), bounds.getBottom());
 
-    // Build envelope path
-    const float tailSamples = 1000.0f; // Normalized reference for shape computation
+    // Build envelope path using the authoritative static method from EnvelopeGenerator
     juce::Path envelopePath;
     bool pathStarted = false;
 
@@ -64,11 +65,9 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
 
         if (normalizedX <= tailFraction && tailFraction > 0.0f)
         {
-            // Within tail region
             const float tailNorm = normalizedX / tailFraction;
-            amplitude = computeEnvelopeAt(tailNorm, shape, tailSamples);
+            amplitude = EnvelopeGenerator::computeShapeAtNormalized(tailNorm, shape, referenceTailSamples);
         }
-        // else: in gap region, amplitude = 0
 
         const float px = bounds.getX() + normalizedX * w;
         const float py = bounds.getBottom() - amplitude * (h - 8.0f) - 4.0f;
@@ -115,73 +114,4 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
 void EnvelopeVisualizer::resized()
 {
     // No child layout needed
-}
-
-float EnvelopeVisualizer::computeEnvelopeAt(float normalizedPos, EnvelopeShape shape, float tailSamples) const
-{
-    const float t = normalizedPos * tailSamples;
-    const float T = tailSamples;
-
-    switch (shape)
-    {
-        case EnvelopeShape::Exponential:
-        case EnvelopeShape::Doppler:
-        {
-            const float decayRate = -std::log(ENVELOPE_THRESHOLD) / T;
-            return std::exp(-t * decayRate);
-        }
-
-        case EnvelopeShape::Linear:
-            return 1.0f - (t / T);
-
-        case EnvelopeShape::Logarithmic:
-        {
-            const float denom = std::log(1.0f + T * LOG_CURVATURE_K);
-            return 1.0f - std::log(1.0f + t * LOG_CURVATURE_K) / denom;
-        }
-
-        case EnvelopeShape::ReverseSawtooth:
-            return (t < T) ? (1.0f - t / T) : 0.0f;
-
-        case EnvelopeShape::Gaussian:
-        {
-            const float sigma = T * GAUSSIAN_SIGMA_RATIO;
-            const float ratio = t / sigma;
-            return std::exp(-0.5f * ratio * ratio);
-        }
-
-        case EnvelopeShape::DoubleTap:
-        {
-            const float decayRate = -std::log(ENVELOPE_THRESHOLD) / (T * 0.5f);
-            const float tap1 = std::exp(-t * decayRate);
-            float tap2 = 0.0f;
-            const float spacing = T * DOUBLE_TAP_SPACING;
-            if (t >= spacing)
-                tap2 = std::exp(-(t - spacing) * decayRate);
-            return std::max(tap1, tap2);
-        }
-
-        case EnvelopeShape::Percussive:
-        {
-            const float attackSamples = T * PERCUSSIVE_ATTACK_RATIO;
-            const float bodySamples = T * PERCUSSIVE_BODY_RATIO;
-
-            if (t < attackSamples)
-                return (attackSamples > 0.0f) ? (t / attackSamples) : 1.0f;
-
-            const float tAfterAttack = t - attackSamples;
-            if (tAfterAttack < bodySamples)
-                return (bodySamples > 0.0f) ? (1.0f - PERCUSSIVE_BODY_DROP * (tAfterAttack / bodySamples)) : (1.0f - PERCUSSIVE_BODY_DROP);
-
-            const float tAfterBody = tAfterAttack - bodySamples;
-            const float decayLen = T - attackSamples - bodySamples;
-            const float decayRate = (decayLen > 0.0f)
-                ? -std::log(ENVELOPE_THRESHOLD / (1.0f - PERCUSSIVE_BODY_DROP)) / decayLen
-                : 0.0f;
-            return (1.0f - PERCUSSIVE_BODY_DROP) * std::exp(-tAfterBody * decayRate);
-        }
-
-        default:
-            return 0.0f;
-    }
 }

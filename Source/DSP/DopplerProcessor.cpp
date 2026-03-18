@@ -29,7 +29,8 @@ void DopplerProcessor::reset()
 
     writeIndex = 0;
     currentDelay = MIN_DELAY_SAMPLES;
-    delayIncrement = 0.0f;
+    maxDelayRange = 0.0f;
+    curveNormalization = 1.0f;
     sweepIndex = 0;
     sweepActive = false;
 }
@@ -41,13 +42,9 @@ void DopplerProcessor::trigger(int tailDurationSamples)
     currentDelay = MIN_DELAY_SAMPLES;
     sweepActive = true;
 
-    // delayGrowthRate = 1.0 - pow(2.0, -semitones / 12.0)
     const float delayGrowthRate = 1.0f - std::pow(2.0f, -pitchShiftSemitones / 12.0f);
-
-    if (tailSamples > 0)
-        delayIncrement = delayGrowthRate;
-    else
-        delayIncrement = 0.0f;
+    maxDelayRange = static_cast<float>(tailSamples) * delayGrowthRate;
+    curveNormalization = 1.0f / (1.0f - std::exp(-CURVE_SHAPE));
 }
 
 void DopplerProcessor::processSampleStereo(float inL, float inR, float& outL, float& outR)
@@ -64,9 +61,11 @@ void DopplerProcessor::processSampleStereo(float inL, float inR, float& outL, fl
         outL = readFromBuffer(0, readPos);
         outR = readFromBuffer(1, readPos);
 
-        // Advance sweep exactly once per sample
-        currentDelay += delayIncrement;
+        // Advance sweep — exponential curve: fast pitch change at apex, tapering off
         ++sweepIndex;
+        const float progress = static_cast<float>(sweepIndex) / static_cast<float>(tailSamples);
+        currentDelay = MIN_DELAY_SAMPLES + maxDelayRange
+                       * (1.0f - std::exp(-progress * CURVE_SHAPE)) * curveNormalization;
 
         if (sweepIndex >= tailSamples)
             sweepActive = false;

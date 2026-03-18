@@ -16,20 +16,11 @@ public:
 
 private:
     void timerCallback() override;
-    float computeEnvelopeAt(float normalizedPos, EnvelopeShape shape, float tailSamples) const;
 
     static constexpr int REPAINT_HZ       = 30;
     static constexpr int RESOLUTION       = 256;   // Number of points to draw
-    static constexpr float TAIL_FRACTION  = 0.65f;  // Proportion of display for tail vs gap
-
-    // Envelope math constants (duplicated from EnvelopeGenerator for UI-only computation)
-    static constexpr float ENVELOPE_THRESHOLD    = 0.001f;
-    static constexpr float LOG_CURVATURE_K       = 10.0f;
-    static constexpr float GAUSSIAN_SIGMA_RATIO  = 0.25f;
-    static constexpr float DOUBLE_TAP_SPACING    = 0.3f;
-    static constexpr float PERCUSSIVE_ATTACK_RATIO = 0.02f;  // Approximate 1ms as fraction
-    static constexpr float PERCUSSIVE_BODY_RATIO   = 0.15f;
-    static constexpr float PERCUSSIVE_BODY_DROP    = 0.3f;
+    static constexpr float TAIL_FRACTION  = 0.65f;  // Default proportion of display for tail vs gap
+    static constexpr float REFERENCE_RATE = 44100.0f; // Reference sample rate for visualization
 
     // Lock-free parameter reads
     std::atomic<float>* shapeParam     = nullptr;

@@ -32,7 +32,11 @@ const juce::String TransientCreatorProcessor::getName() const { return JucePlugi
 bool TransientCreatorProcessor::acceptsMidi() const { return false; }
 bool TransientCreatorProcessor::producesMidi() const { return false; }
 bool TransientCreatorProcessor::isMidiEffect() const { return false; }
-double TransientCreatorProcessor::getTailLengthSeconds() const { return 0.0; }
+double TransientCreatorProcessor::getTailLengthSeconds() const
+{
+    // Worst case: max tail + max gap so DAWs don't truncate during offline bounce
+    return static_cast<double>(ParamDefaults::TAIL_LENGTH_MAX + ParamDefaults::SILENCE_GAP_MAX) / 1000.0;
+}
 int TransientCreatorProcessor::getNumPrograms() { return 1; }
 int TransientCreatorProcessor::getCurrentProgram() { return 0; }
 void TransientCreatorProcessor::setCurrentProgram(int) {}
