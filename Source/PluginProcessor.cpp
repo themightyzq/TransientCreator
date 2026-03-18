@@ -1,12 +1,11 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-// Threshold set to -1.0dB to prevent inter-sample true-peak overs.
-// juce::dsp::Limiter uses two compressor stages + hard clip at 0dBFS.
-// A 0dB threshold defeats the first stage and allows inter-sample peaks
-// that DAW true-peak metering (Reaper, Pro Tools) reports as overloads.
-static constexpr float LIMITER_THRESHOLD_DB = -1.0f;
-static constexpr float LIMITER_RELEASE_MS   = 50.0f;
+// Limiter compressor settings
+static constexpr float LIMITER_THRESHOLD_DB = -6.0f;   // Start compressing at -6dBFS
+static constexpr float LIMITER_RATIO        = 100.0f;   // Near-infinite ratio
+static constexpr float LIMITER_ATTACK_MS    = 0.01f;    // 10 microsecond attack
+static constexpr float LIMITER_RELEASE_MS   = 50.0f;    // 50ms release
 
 TransientCreatorProcessor::TransientCreatorProcessor()
     : AudioProcessor(BusesProperties()
@@ -14,7 +13,6 @@ TransientCreatorProcessor::TransientCreatorProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "PARAMETERS", createParameterLayout())
 {
-    // Cache raw parameter pointers — these are lock-free atomics safe for the audio thread
     tailLengthParam  = apvts.getRawParameterValue(ParamIDs::TAIL_LENGTH);
     silenceGapParam  = apvts.getRawParameterValue(ParamIDs::SILENCE_GAP);
     intensityParam   = apvts.getRawParameterValue(ParamIDs::INTENSITY);
@@ -45,20 +43,23 @@ void TransientCreatorProcessor::prepareToPlay(double sampleRate, int samplesPerB
 {
     transientEngine.prepare(sampleRate, samplesPerBlock);
 
-    // Prepare juce::dsp::Limiter
+    // Configure juce::dsp::Compressor as a fast limiter (no makeup gain, no opaque internals)
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
-    limiter.prepare(spec);
-    limiter.setThreshold(LIMITER_THRESHOLD_DB);
-    limiter.setRelease(LIMITER_RELEASE_MS);
+
+    limiterCompressor.prepare(spec);
+    limiterCompressor.setThreshold(LIMITER_THRESHOLD_DB);
+    limiterCompressor.setRatio(LIMITER_RATIO);
+    limiterCompressor.setAttack(LIMITER_ATTACK_MS);
+    limiterCompressor.setRelease(LIMITER_RELEASE_MS);
 }
 
 void TransientCreatorProcessor::releaseResources()
 {
     transientEngine.reset();
-    limiter.reset();
+    limiterCompressor.reset();
 }
 
 bool TransientCreatorProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -79,17 +80,16 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Read discrete parameters once per block (no smoothing needed)
+    // Read discrete parameters once per block
     const auto currentShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
     const bool syncEnabled = syncEnabledParam->load() >= 0.5f;
     const int currentSyncNote = static_cast<int>(syncNoteParam->load());
     const auto currentInputMode = static_cast<TransientEngine::InputMode>(static_cast<int>(inputModeParam->load()));
 
-    // Read continuous parameters directly from atomics — engine does per-sample smoothing
     const float tailLengthMs = tailLengthParam->load();
     float silenceGapMs = silenceGapParam->load();
 
-    // Host tempo sync: override silence gap to align cycle to beat division
+    // Host tempo sync
     if (syncEnabled)
     {
         if (auto* playHead = getPlayHead())
@@ -116,7 +116,7 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         }
     }
 
-    // Push parameters to engine — raw values, engine smooths internally
+    // Push parameters to engine
     transientEngine.setTailLength(tailLengthMs);
     transientEngine.setSilenceGap(silenceGapMs);
     transientEngine.setShape(currentShape);
@@ -128,13 +128,30 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 
-    // juce::dsp::Limiter — absolute final stage in the output chain
+    // Output limiter — absolute final stage
     const bool limiterOn = limiterOnParam->load() >= 0.5f;
     if (limiterOn)
     {
+        // Stage 1: Fast compressor configured as limiter (dynamics shaping)
         juce::dsp::AudioBlock<float> block(buffer);
         juce::dsp::ProcessContextReplacing<float> context(block);
-        limiter.process(context);
+        limiterCompressor.process(context);
+
+        // Stage 2: Hard ceiling clamp at -0.3dBFS — absolute safety net.
+        // No sample can leave this plugin above this value, period.
+        // This catches anything the compressor's attack time didn't fully contain.
+        const int numSamples = buffer.getNumSamples();
+        const int numChannels = buffer.getNumChannels();
+
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            juce::FloatVectorOperations::clip(
+                buffer.getWritePointer(ch),
+                buffer.getReadPointer(ch),
+                -HARD_CEILING_LINEAR,
+                HARD_CEILING_LINEAR,
+                numSamples);
+        }
     }
 }
 
