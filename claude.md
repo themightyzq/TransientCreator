@@ -122,6 +122,59 @@ The following agent configuration files were found in `.claude/agents/` and asse
 
 ---
 
+## Signal Chain (Current Architecture)
+
+```
+Input (External/Noise/Sine) → Envelope × (Intensity + Boost) → Doppler
+  → Pre-Delay → HPF → LPF → Dry/Wet Mix → Output Gain
+  → [PluginProcessor] → Limiter Compressor → Hard Ceiling Clamp → DAW
+```
+
+- Envelope, boost, mix, and gain are per-sample smoothed (SmoothedValue in TransientEngine)
+- Filters are block-based (juce::dsp::StateVariableTPTFilter after per-sample loop)
+- Limiter is block-based (juce::dsp::Compressor + FloatVectorOperations::clip in PluginProcessor)
+
+---
+
+## Established Patterns (Binding)
+
+- All envelope math constants live in `Source/DSP/EnvelopeConstants.h` — single source of truth
+- SmoothedValues for continuous parameters belong in `TransientEngine`, not `PluginProcessor`
+- `PluginProcessor` reads atomics and passes raw values to engine setters each processBlock
+- Envelope trigger detection uses `consumeTriggerFlag()` pattern, not state comparison
+- `recalculateSampleCounts()` uses epsilon caching to skip redundant work
+- `recalculateCoefficients()` is factored out for humanize per-trigger recalculation
+- The static `computeShapeAtNormalized()` on EnvelopeGenerator is the authoritative visualization method
+
+---
+
+## Parameters (20 total)
+
+| # | ID | Name | Type | Range | Default |
+|---|---|------|------|-------|---------|
+| 1 | tailLength | Tail Length | Float | 5–5000 ms | 50 ms |
+| 2 | silenceGap | Silence Gap | Float | 0–2000 ms | 100 ms |
+| 3 | transientShape | Transient Shape | Choice (8) | — | Exponential |
+| 4 | intensity | Intensity | Float | 0–100% | 75% |
+| 5 | pitchShift | Pitch Shift | Float | 0–24 st | 12 st |
+| 6 | mix | Mix | Float | 0–100% | 100% |
+| 7 | syncEnabled | Sync to Host | Bool | — | OFF |
+| 8 | syncNote | Sync Note Value | Choice (9) | — | 1/4 |
+| 9 | inputMode | Input Mode | Choice (4) | — | External |
+| 10 | outputGain | Output Gain | Float | -24–+24 dB | 0 dB |
+| 11 | limiterOn | Limiter | Bool | — | ON |
+| 12 | attackTime | Attack Time | Float | 0–10 ms | 0.1 ms |
+| 13 | transientGain | Transient Boost | Float | 0–24 dB | 0 dB |
+| 14 | envelopeTension | Curve | Float | 0.1–5.0 | 1.0 |
+| 15 | filterHPF | HPF | Float | 20–2000 Hz | 20 Hz |
+| 16 | filterLPF | LPF | Float | 200–20000 Hz | 20000 Hz |
+| 17 | sineFrequency | Osc Frequency | Float | 20–8000 Hz | 440 Hz |
+| 18 | dopplerDirection | Doppler Direction | Choice (3) | — | Recede |
+| 19 | preDelay | Pre-Delay | Float | 0–50 ms | 0 ms |
+| 20 | humanize | Humanize | Float | 0–100% | 0% |
+
+---
+
 ## Task Execution Protocol
 
 When given a task:
