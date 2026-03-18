@@ -1,7 +1,11 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-static constexpr float LIMITER_THRESHOLD_DB = 0.0f;
+// Threshold set to -1.0dB to prevent inter-sample true-peak overs.
+// juce::dsp::Limiter uses two compressor stages + hard clip at 0dBFS.
+// A 0dB threshold defeats the first stage and allows inter-sample peaks
+// that DAW true-peak metering (Reaper, Pro Tools) reports as overloads.
+static constexpr float LIMITER_THRESHOLD_DB = -1.0f;
 static constexpr float LIMITER_RELEASE_MS   = 50.0f;
 
 TransientCreatorProcessor::TransientCreatorProcessor()
