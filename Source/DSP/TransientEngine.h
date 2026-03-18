@@ -3,6 +3,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 #include "EnvelopeGenerator.h"
+#include "DopplerProcessor.h"
 
 class TransientEngine
 {
@@ -47,6 +48,11 @@ private:
 
     // Envelope
     EnvelopeGenerator envelope;
+
+    // Doppler pitch-shift processor
+    DopplerProcessor doppler;
+    EnvelopeShape currentShape = EnvelopeShape::Exponential;
+    float cachedTailLengthMs = 50.0f;
 
     // Parameters (cached per-block)
     float intensity = 0.75f;   // 0.0–1.0 (converted from percent)

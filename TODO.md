@@ -98,29 +98,29 @@
 ---
 
 ## Phase 4: Doppler Processor
-- [ ] Create DSP/DopplerProcessor.h — variable delay line for pitch-shift effect
-- [ ] Implement circular buffer with fractional-sample interpolation (cubic or linear)
-- [ ] Implement time-varying delay that increases over the tail duration:
+- [x] Create DSP/DopplerProcessor.h — variable delay line for pitch-shift effect
+- [x] Implement circular buffer with fractional-sample interpolation (cubic or linear)
+- [x] Implement time-varying delay that increases over the tail duration:
   - At trigger: delay = minimum (near zero)
   - As tail progresses: delay smoothly increases, causing pitch to drop
   - Delay change rate derived from `PitchShift` parameter (semitones to speed ratio)
-- [ ] The delay rate of change follows: `delayGrowthRate = 1.0 - pow(2.0, -pitchShiftSemitones / 12.0)`
-- [ ] Implement anti-aliased interpolation (at minimum linear; prefer Hermite/cubic)
-- [ ] Integrate DopplerProcessor into TransientEngine — activated only when shape == Doppler
+- [x] The delay rate of change follows: `delayGrowthRate = 1.0 - pow(2.0, -pitchShiftSemitones / 12.0)`
+- [x] Implement anti-aliased interpolation (at minimum linear; prefer Hermite/cubic)
+- [x] Integrate DopplerProcessor into TransientEngine — activated only when shape == Doppler
 - [ ] Test: verify pitch drops by expected semitone amount over tail duration
 - [ ] Test: no aliasing artifacts or clicks during pitch sweep
 
 ---
 
 ## Phase 5: Host Tempo Sync
-- [ ] Read BPM and time signature from `juce::AudioPlayHead::getCurrentPosition()`
-- [ ] Calculate cycle duration from note value:
+- [x] Read BPM and time signature from `juce::AudioPlayHead::getPosition()`
+- [x] Calculate cycle duration from note value:
   - 1/4 note at 120 BPM = 500ms, etc.
   - Triplet values = note_duration * 2/3
-- [ ] When Sync is ON: override Tail Length + Silence Gap with tempo-derived total cycle time
+- [x] When Sync is ON: override Tail Length + Silence Gap with tempo-derived total cycle time
   - Tail Length stays user-defined, Silence Gap adjusts to fill remainder of the beat division
-- [ ] Handle tempo changes mid-playback smoothly (no abrupt jumps)
-- [ ] Handle missing tempo info gracefully (fall back to free-running mode)
+- [x] Handle tempo changes mid-playback smoothly (no abrupt jumps)
+- [x] Handle missing tempo info gracefully (fall back to free-running mode)
 - [ ] Test: at 120 BPM with 1/4 sync, verify exactly 2 transients per second
 
 ---

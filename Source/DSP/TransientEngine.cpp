@@ -13,6 +13,7 @@ void TransientEngine::prepare(double sampleRate, int maxBlock)
     currentMaxBlockSize = maxBlock;
 
     envelope.prepare(sampleRate);
+    doppler.prepare(sampleRate, maxBlock);
 
     // Pre-allocate dry buffer for mix processing
     dryBuffer.setSize(2, maxBlock);
@@ -37,8 +38,21 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
             dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
     }
 
+    const bool dopplerActive = (currentShape == EnvelopeShape::Doppler);
+    bool wasInTail = envelope.isInTail();
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
+        // Detect tail re-trigger to sync DopplerProcessor
+        const bool nowInTail = envelope.isInTail();
+        if (dopplerActive && nowInTail && !wasInTail)
+        {
+            const int tailSamples = static_cast<int>((cachedTailLengthMs / 1000.0f)
+                                                      * static_cast<float>(currentSampleRate));
+            doppler.trigger(tailSamples);
+        }
+        wasInTail = nowInTail;
+
         // Get envelope amplitude for this sample
         const float envelopeValue = envelope.getNextSample();
 
@@ -56,7 +70,11 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
                 inputSample = buffer.getSample(ch, sample);
 
             // Apply transient envelope
-            const float wetSample = inputSample * effectiveAmp;
+            float wetSample = inputSample * effectiveAmp;
+
+            // Apply Doppler pitch-shift (per-channel processing through delay line)
+            if (dopplerActive)
+                wetSample = doppler.processSample(wetSample);
 
             // Write processed sample
             buffer.setSample(ch, sample, wetSample);
@@ -80,6 +98,7 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
 void TransientEngine::reset()
 {
     envelope.prepare(currentSampleRate);
+    doppler.reset();
     sinePhase = 0.0f;
 
     for (int i = 0; i < PINK_NOISE_STAGES; ++i)
@@ -92,6 +111,7 @@ void TransientEngine::reset()
 
 void TransientEngine::setTailLength(float ms)
 {
+    cachedTailLengthMs = ms;
     envelope.setTailLength(ms);
 }
 
@@ -102,6 +122,7 @@ void TransientEngine::setSilenceGap(float ms)
 
 void TransientEngine::setShape(EnvelopeShape shape)
 {
+    currentShape = shape;
     envelope.setShape(shape);
 }
 
@@ -110,9 +131,9 @@ void TransientEngine::setIntensity(float percent)
     intensity = percent * PERCENT_TO_FRACTION;
 }
 
-void TransientEngine::setPitchShift(float /*semitones*/)
+void TransientEngine::setPitchShift(float semitones)
 {
-    // Forwarded to DopplerProcessor in Phase 4
+    doppler.setPitchShiftSemitones(semitones);
 }
 
 void TransientEngine::setMix(float percent)
