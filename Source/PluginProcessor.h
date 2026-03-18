@@ -39,6 +39,24 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
+    // Caches raw parameter pointers for audio-thread-safe reads (no locking)
+    std::atomic<float>* tailLengthParam  = nullptr;
+    std::atomic<float>* silenceGapParam  = nullptr;
+    std::atomic<float>* intensityParam   = nullptr;
+    std::atomic<float>* pitchShiftParam  = nullptr;
+    std::atomic<float>* mixParam         = nullptr;
+    std::atomic<float>* shapeParam       = nullptr;
+    std::atomic<float>* syncEnabledParam = nullptr;
+    std::atomic<float>* syncNoteParam    = nullptr;
+    std::atomic<float>* inputModeParam   = nullptr;
+
+    // SmoothedValue wrappers for continuously-modulated parameters
+    juce::SmoothedValue<float> tailLengthSmoothed;
+    juce::SmoothedValue<float> silenceGapSmoothed;
+    juce::SmoothedValue<float> intensitySmoothed;
+    juce::SmoothedValue<float> pitchShiftSmoothed;
+    juce::SmoothedValue<float> mixSmoothed;
+
     TransientEngine transientEngine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransientCreatorProcessor)
