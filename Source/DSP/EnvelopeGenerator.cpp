@@ -7,6 +7,8 @@ void EnvelopeGenerator::prepare(double sampleRate)
     currentSampleRate = sampleRate;
     cachedTailLengthMs = -1.0f;
     cachedSilenceGapMs = -1.0f;
+    cachedAttackTimeMs = -1.0f;
+    cachedSustainHoldPercent = -1.0f;
     recalculateSampleCounts();
 
     currentState = State::Silence;
@@ -124,13 +126,21 @@ void EnvelopeGenerator::setSilenceGap(float ms)
 }
 
 void EnvelopeGenerator::setShape(EnvelopeShape shape) { currentShape = shape; }
-void EnvelopeGenerator::setAttackTime(float ms) { attackTimeMs = ms; recalculateSampleCounts(); }
+void EnvelopeGenerator::setAttackTime(float ms)
+{
+    if (std::fabs(ms - cachedAttackTimeMs) < 1.0e-6f) return;
+    attackTimeMs = ms;
+    cachedAttackTimeMs = ms;
+    recalculateSampleCounts();
+}
 void EnvelopeGenerator::setTension(float t) { tension = t; }
 void EnvelopeGenerator::setHumanize(float percent) { humanizeAmount = percent * 0.01f; }
 
 void EnvelopeGenerator::setSustainHold(float percent)
 {
+    if (std::fabs(percent - cachedSustainHoldPercent) < 1.0e-6f) return;
     sustainHoldPercent = percent;
+    cachedSustainHoldPercent = percent;
     recalculateSampleCounts();
 }
 

@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-static constexpr float LIMITER_THRESHOLD_DB = -6.0f;
+static constexpr float LIMITER_THRESHOLD_DB = -1.0f;
 static constexpr float LIMITER_RATIO        = 100.0f;
 static constexpr float LIMITER_ATTACK_MS    = 0.01f;
 static constexpr float LIMITER_RELEASE_MS   = 50.0f;

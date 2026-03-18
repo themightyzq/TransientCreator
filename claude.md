@@ -126,13 +126,15 @@ The following agent configuration files were found in `.claude/agents/` and asse
 
 ```
 Input (External/Noise/Sine) → Envelope × (Intensity + Boost) → Doppler
-  → Pre-Delay → HPF → LPF → Dry/Wet Mix → Output Gain
-  → [PluginProcessor] → Limiter Compressor → Hard Ceiling Clamp → DAW
+  → Pre-Delay → [wet buffer] → HPF → LPF → Dry/Wet Mix → Output Gain
+  → [PluginProcessor] → Limiter Compressor → Hard Ceiling Clamp (-0.5dBFS) → DAW
 ```
 
-- Envelope, boost, mix, and gain are per-sample smoothed (SmoothedValue in TransientEngine)
-- Filters are block-based (juce::dsp::StateVariableTPTFilter after per-sample loop)
-- Limiter is block-based (juce::dsp::Compressor + FloatVectorOperations::clip in PluginProcessor)
+- Filters apply to WET signal only (before mix with dry)
+- Envelope, intensity, boost advanced per-sample in loop 1 (wet generation)
+- Mix and output gain advanced per-sample in loop 2 (post-filter mixing)
+- Gain smoothers operate in linear space (dB→linear conversion once per block in setter)
+- Limiter is block-based (juce::dsp::Compressor at -1dBFS + FloatVectorOperations::clip in PluginProcessor)
 
 ---
 

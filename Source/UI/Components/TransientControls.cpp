@@ -144,7 +144,7 @@ void TransientControls::updateConditionalState()
 {
     const bool isDoppler = static_cast<int>(shapeParam->load()) == static_cast<int>(EnvelopeShape::Doppler);
     const bool isSyncOn  = syncParam->load() >= 0.5f;
-    const bool isSine    = static_cast<int>(inputModeParam->load()) == 3;
+    const bool isSine    = static_cast<int>(inputModeParam->load()) == ParamDefaults::INPUT_MODE_SINE_INDEX;
 
     pitchShiftSlider.setVisible(isDoppler);
     pitchShiftLabel.setVisible(isDoppler);
