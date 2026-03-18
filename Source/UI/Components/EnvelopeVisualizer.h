@@ -18,12 +18,13 @@ private:
     void timerCallback() override;
 
     static constexpr int REPAINT_HZ       = 30;
-    static constexpr int RESOLUTION       = 256;   // Number of points to draw
-    static constexpr float TAIL_FRACTION  = 0.65f;  // Default proportion of display for tail vs gap
-    static constexpr float REFERENCE_RATE = 44100.0f; // Reference sample rate for visualization
+    static constexpr int RESOLUTION       = 256;
+    static constexpr float TAIL_FRACTION  = 0.65f;
+    static constexpr float REFERENCE_RATE = 44100.0f;
 
-    // Lock-free parameter reads
-    std::atomic<float>* shapeParam     = nullptr;
+    std::atomic<float>* shapeParam      = nullptr;
     std::atomic<float>* tailLengthParam = nullptr;
     std::atomic<float>* silenceGapParam = nullptr;
+    std::atomic<float>* attackTimeParam = nullptr;
+    std::atomic<float>* tensionParam    = nullptr;
 };

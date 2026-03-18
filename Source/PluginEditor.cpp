@@ -5,10 +5,10 @@ TransientCreatorEditor::TransientCreatorEditor(TransientCreatorProcessor& p)
 {
     juce::ignoreUnused(processorRef);
     addAndMakeVisible(mainPanel);
-    setSize(500, 350);
+    setSize(650, 420);
     setResizable(true, true);
-    setResizeLimits(400, 280, 1200, 840);
-    getConstrainer()->setFixedAspectRatio(500.0 / 350.0);
+    setResizeLimits(520, 336, 1300, 840);
+    getConstrainer()->setFixedAspectRatio(650.0 / 420.0);
 }
 
 TransientCreatorEditor::~TransientCreatorEditor() = default;

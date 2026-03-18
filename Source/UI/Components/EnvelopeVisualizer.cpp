@@ -5,6 +5,8 @@ EnvelopeVisualizer::EnvelopeVisualizer(juce::AudioProcessorValueTreeState& apvts
     shapeParam      = apvts.getRawParameterValue(ParamIDs::SHAPE);
     tailLengthParam = apvts.getRawParameterValue(ParamIDs::TAIL_LENGTH);
     silenceGapParam = apvts.getRawParameterValue(ParamIDs::SILENCE_GAP);
+    attackTimeParam = apvts.getRawParameterValue(ParamIDs::ATTACK_TIME);
+    tensionParam    = apvts.getRawParameterValue(ParamIDs::ENVELOPE_TENSION);
 
     startTimerHz(REPAINT_HZ);
 }
@@ -25,36 +27,35 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float w = bounds.getWidth();
     const float h = bounds.getHeight();
 
-    // Background
     g.setColour(juce::Colour(0xff0a0e1a));
     g.fillRoundedRectangle(bounds, 4.0f);
 
-    // Read parameters
-    const auto shape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
-    const float tailMs = tailLengthParam->load();
-    const float gapMs  = silenceGapParam->load();
+    const auto shape      = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
+    const float tailMs    = tailLengthParam->load();
+    const float gapMs     = silenceGapParam->load();
+    const float attackMs  = attackTimeParam->load();
+    const float tension   = tensionParam->load();
 
-    // Reference tail samples for shape computation (uses fixed reference rate)
     const float referenceTailSamples = (tailMs / 1000.0f) * REFERENCE_RATE;
+    const float attackFraction = (tailMs > 0.0f) ? (attackMs / tailMs) : 0.0f;
 
-    // Calculate proportions for tail vs gap display
     const float totalMs = tailMs + gapMs;
     const float tailFraction = (totalMs > 0.0f) ? (tailMs / totalMs) : TAIL_FRACTION;
     const float tailWidth = w * tailFraction;
     const float gapWidth  = w - tailWidth;
 
-    // Draw gap region (dimmed)
+    // Gap region
     if (gapWidth > 0.0f)
     {
         g.setColour(juce::Colour(0xff111827));
         g.fillRoundedRectangle(bounds.getX() + tailWidth, bounds.getY(), gapWidth, h, 0.0f);
     }
 
-    // Draw separator line between tail and gap
+    // Separator
     g.setColour(juce::Colour(0xff334155));
     g.drawVerticalLine(static_cast<int>(bounds.getX() + tailWidth), bounds.getY(), bounds.getBottom());
 
-    // Build envelope path using the authoritative static method from EnvelopeGenerator
+    // Build envelope path with attack and tension
     juce::Path envelopePath;
     bool pathStarted = false;
 
@@ -66,7 +67,8 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
         if (normalizedX <= tailFraction && tailFraction > 0.0f)
         {
             const float tailNorm = normalizedX / tailFraction;
-            amplitude = EnvelopeGenerator::computeShapeAtNormalized(tailNorm, shape, referenceTailSamples);
+            amplitude = EnvelopeGenerator::computeShapeAtNormalized(
+                tailNorm, shape, referenceTailSamples, tension, attackFraction);
         }
 
         const float px = bounds.getX() + normalizedX * w;
@@ -83,7 +85,7 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
         }
     }
 
-    // Draw envelope curve
+    // Draw curve
     g.setColour(juce::Colour(0xff3b82f6));
     g.strokePath(envelopePath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
@@ -113,5 +115,4 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
 
 void EnvelopeVisualizer::resized()
 {
-    // No child layout needed
 }
