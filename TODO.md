@@ -217,6 +217,22 @@
 
 ---
 
+## Completed — Phase 1–6 Bug Fixes & Features Summary
+
+**Phase 1 (Critical Audio Bugs):** Replaced broken limiter with juce::dsp::Compressor + hard ceiling. Fixed stereo Doppler (per-channel buffers). Fixed generator double-advance. Moved SmoothedValues to engine for per-sample smoothing.
+
+**Phase 2 (High-Priority Fixes):** Removed apex-killing onset fade-in. Consolidated envelope constants into EnvelopeConstants.h. Fixed getTailLengthSeconds(). Replaced linear Doppler ramp with exponential curve.
+
+**Phase 3 (Architecture):** Added trigger flag for reliable Doppler sync. Cached envelope recalculation. Removed dead isActive(). Added processBlockBypassed().
+
+**Phase 4 (New Features):** 8 new parameters — Attack Time, Transient Boost, Curve/Tension, HPF/LPF filters, Sine Frequency, Doppler Direction, Pre-Delay, Humanize.
+
+**Phase 5 (UI):** All 8 new parameters wired to UI controls. Editor expanded to 650x420. 5-row layout with section labels. Visualizer shows attack and tension. Conditional visibility for Doppler/Sine/Sync modes.
+
+**Phase 6 (Verification):** Zero-warning build verified. Parameter audit (20/20 pass). Real-time safety audit passed. README/claude.md/TODO.md updated. Factory presets documented.
+
+---
+
 ## Backlog / Future Ideas
 - [ ] MIDI trigger mode: fire transients on MIDI note input instead of looping
 - [ ] Sidechain input: use a separate audio source to trigger transients
