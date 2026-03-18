@@ -16,25 +16,28 @@ public:
 private:
     void timerCallback() override;
     void updateConditionalState();
-    void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& labelText);
+    void setupSlider(juce::Slider& slider, juce::Label& label,
+                     const juce::String& labelText, double defaultValue);
 
     static constexpr int STATE_CHECK_HZ = 15;
 
-    // --- Existing knobs ---
+    // --- Knobs ---
     juce::Slider tailLengthSlider, silenceGapSlider, intensitySlider;
     juce::Slider pitchShiftSlider, mixSlider, outputGainSlider;
-    // --- Phase 4 new knobs ---
     juce::Slider attackTimeSlider, transientGainSlider, tensionSlider;
     juce::Slider hpfSlider, lpfSlider, sineFreqSlider;
     juce::Slider preDelaySlider, humanizeSlider, sustainHoldSlider;
 
-    // --- Labels ---
+    // --- Knob labels ---
     juce::Label tailLengthLabel, silenceGapLabel, intensityLabel;
     juce::Label pitchShiftLabel, mixLabel, outputGainLabel;
     juce::Label shapeLabel, syncNoteLabel, inputModeLabel;
     juce::Label attackTimeLabel, transientGainLabel, tensionLabel;
     juce::Label hpfLabel, lpfLabel, sineFreqLabel;
     juce::Label dopplerDirLabel, preDelayLabel, humanizeLabel, sustainHoldLabel;
+
+    // --- Section labels ---
+    juce::Label timingSectionLabel, shapeSectionLabel, outputSectionLabel;
 
     // --- Dropdowns ---
     juce::ComboBox shapeSelector, syncNoteSelector, inputModeSelector;

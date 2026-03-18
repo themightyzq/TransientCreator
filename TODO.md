@@ -215,6 +215,18 @@
 
 ---
 
+## Phase 7C: UI Layout Fixes & Accessibility
+- [x] Fix layout overflow: visualizer 35%→25%, knob rows 72→64px, gaps 16→2+12px, dropdowns 48→42px
+- [x] Fix section labels: replaced hardcoded paint() text with Label components positioned in resized()
+- [x] Double-click to reset: all 15 knobs reset to defaults via setDoubleClickReturnValue()
+- [x] Tooltips: TooltipWindow added to editor, descriptive tooltips on all 21 controls
+- [x] Keyboard focus ring: accent glow on focused knobs in drawRotarySlider()
+- [x] Accessible names: setTitle() on all sliders, combo boxes, and toggle buttons
+- [x] Visualizer polish: uses theme constants, shows shape name, TAIL/GAP region labels
+- [x] Min resize adjusted to 546x352 (matches aspect ratio)
+
+---
+
 ## Phase 8: Testing & Validation
 - [ ] Unit tests for all envelope shapes (EnvelopeGeneratorTests.cpp)
 - [ ] Unit tests for TransientEngine state machine (TransientEngineTests.cpp)

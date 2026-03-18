@@ -24,7 +24,7 @@ void MainPanel::resized()
     auto bounds = getLocalBounds().reduced(6);
 
     // Top 35%: envelope visualizer
-    auto vizHeight = static_cast<int>(bounds.getHeight() * 0.35f);
+    auto vizHeight = static_cast<int>(bounds.getHeight() * 0.25f);
     envelopeVisualizer.setBounds(bounds.removeFromTop(vizHeight));
 
     bounds.removeFromTop(4);
