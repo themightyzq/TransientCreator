@@ -5,11 +5,16 @@ using namespace EnvelopeConstants;
 void EnvelopeGenerator::prepare(double sampleRate)
 {
     currentSampleRate = sampleRate;
+
+    // Force recalculation on first block after prepare
+    cachedTailLengthMs = -1.0f;
+    cachedSilenceGapMs = -1.0f;
     recalculateSampleCounts();
 
     // Reset state
     currentState = State::Silence;
     sampleIndex = 0;
+    justTriggered = false;
     crossfading = false;
     crossfadeIndex = 0;
     previousEndAmplitude = 0.0f;
@@ -25,6 +30,7 @@ void EnvelopeGenerator::trigger()
 
     currentState = State::Tail;
     sampleIndex = 0;
+    justTriggered = true;
 
     // Enable crossfade if previous amplitude is non-negligible
     // Percussive shape starts from zero (attack phase), so crossfade is unnecessary
@@ -96,11 +102,6 @@ float EnvelopeGenerator::getNextSample()
     return output;
 }
 
-bool EnvelopeGenerator::isActive() const
-{
-    return currentState == State::Tail;
-}
-
 bool EnvelopeGenerator::isInTail() const
 {
     return currentState == State::Tail;
@@ -108,13 +109,17 @@ bool EnvelopeGenerator::isInTail() const
 
 void EnvelopeGenerator::setTailLength(float ms)
 {
+    if (std::fabs(ms - cachedTailLengthMs) < 1.0e-6f) return;
     tailLengthMs = ms;
+    cachedTailLengthMs = ms;
     recalculateSampleCounts();
 }
 
 void EnvelopeGenerator::setSilenceGap(float ms)
 {
+    if (std::fabs(ms - cachedSilenceGapMs) < 1.0e-6f) return;
     silenceGapMs = ms;
+    cachedSilenceGapMs = ms;
     recalculateSampleCounts();
 }
 

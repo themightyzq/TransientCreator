@@ -152,7 +152,7 @@
 ---
 
 ## Phase 7: Polish & Edge Cases
-- [ ] Implement proper bypass behavior (when plugin is bypassed, pass audio through cleanly)
+- [x] Implement proper bypass behavior (when plugin is bypassed, pass audio through cleanly)
 - [ ] Handle edge cases: zero tail length, zero silence gap, 100% intensity at boundaries
 - [ ] Latency reporting: if any processing adds latency, report via `setLatencySamples()`
 - [ ] Ensure thread safety: no data races between audio thread and UI thread
@@ -173,6 +173,10 @@
 - [x] Fix 2B: Consolidate duplicated envelope constants into EnvelopeConstants.h, add static computeShapeAtNormalized()
 - [x] Fix 2C: Fix getTailLengthSeconds() returning zero (now returns worst-case 7s)
 - [x] Fix 2D: Replace linear Doppler delay ramp with exponential curve (front-loaded pitch change)
+- [x] Fix 3A: Add envelope trigger flag for reliable Doppler sync (fixes block-boundary missed triggers)
+- [x] Fix 3B: Cache envelope recalculation (skip redundant math when params unchanged)
+- [x] Fix 3C: Remove redundant isActive() method (isInTail() is the single API)
+- [x] Fix 3D: Add proper bypass handling (processBlockBypassed resets limiter state)
 
 ---
 

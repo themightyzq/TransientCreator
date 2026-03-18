@@ -66,6 +66,16 @@ void TransientCreatorProcessor::releaseResources()
     limiterCompressor.reset();
 }
 
+void TransientCreatorProcessor::processBlockBypassed(juce::AudioBuffer<float>& buffer,
+                                                      juce::MidiBuffer& midi)
+{
+    // Reset limiter state so it doesn't produce artifacts when bypass is released
+    limiterCompressor.reset();
+
+    // Let JUCE handle the default bypass behavior (pass audio through)
+    AudioProcessor::processBlockBypassed(buffer, midi);
+}
+
 bool TransientCreatorProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
