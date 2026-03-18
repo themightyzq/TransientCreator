@@ -54,8 +54,13 @@ private:
 
     TransientEngine transientEngine;
 
-    // juce::dsp::Limiter — proper true-peak limiting, stereo-linked, sample-rate-aware
-    juce::dsp::Limiter<float> limiter;
+    // Output limiter: juce::dsp::Compressor configured as a fast limiter,
+    // followed by a hard ceiling clamp as absolute safety net.
+    juce::dsp::Compressor<float> limiterCompressor;
+
+    // Hard ceiling: -0.3dBFS — prevents any sample from exceeding this value.
+    // Provides headroom for inter-sample true-peak reconstruction.
+    static constexpr float HARD_CEILING_LINEAR = 0.9661f;  // -0.3 dBFS
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransientCreatorProcessor)
 };
