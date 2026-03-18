@@ -48,22 +48,19 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
         dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
     const bool dopplerActive = (currentShape == EnvelopeShape::Doppler);
-    bool wasInTail = envelope.isInTail();
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Detect tail re-trigger to sync DopplerProcessor
-        const bool nowInTail = envelope.isInTail();
-        if (dopplerActive && nowInTail && !wasInTail)
+        // Get envelope amplitude — may internally call trigger() when gap expires
+        const float envelopeValue = envelope.getNextSample();
+
+        // Check trigger flag AFTER getNextSample() — trigger happens inside getNextSample()
+        if (dopplerActive && envelope.consumeTriggerFlag())
         {
             const int tailSamps = static_cast<int>((cachedTailLengthMs / 1000.0f)
                                                     * static_cast<float>(currentSampleRate));
             doppler.trigger(tailSamps);
         }
-        wasInTail = nowInTail;
-
-        // Get envelope amplitude for this sample
-        const float envelopeValue = envelope.getNextSample();
 
         // Per-sample smoothed values
         const float currentIntensity = intensitySmoothed.getNextValue();
