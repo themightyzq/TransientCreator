@@ -17,19 +17,16 @@ void TransientEngine::prepare(double sampleRate, int maxBlock)
     envelope.prepare(sampleRate);
     doppler.prepare(sampleRate, maxBlock);
 
-    // Pre-allocate buffers
     dryBuffer.setSize(NUM_CHANNELS, maxBlock);
     wetBuffer.setSize(NUM_CHANNELS, maxBlock);
 
-    // Sine oscillator
     sinePhaseInc = static_cast<float>(440.0 / sampleRate);
     sinePhase = 0.0f;
 
-    // Reset pink noise
     for (int i = 0; i < PINK_NOISE_STAGES; ++i)
         pinkState[i] = 0.0f;
 
-    // Per-sample smoothers
+    // Per-sample smoothers — gain smoothers in linear space (7B-2)
     intensitySmoothed.reset(sampleRate, SMOOTHING_TIME_SEC);
     intensitySmoothed.setCurrentAndTargetValue(0.75f);
 
@@ -37,12 +34,12 @@ void TransientEngine::prepare(double sampleRate, int maxBlock)
     mixSmoothed.setCurrentAndTargetValue(1.0f);
 
     outputGainSmoothed.reset(sampleRate, SMOOTHING_TIME_SEC);
-    outputGainSmoothed.setCurrentAndTargetValue(0.0f);
+    outputGainSmoothed.setCurrentAndTargetValue(1.0f);  // 0dB = linear 1.0
 
     transientGainSmoothed.reset(sampleRate, SMOOTHING_TIME_SEC);
-    transientGainSmoothed.setCurrentAndTargetValue(0.0f);
+    transientGainSmoothed.setCurrentAndTargetValue(1.0f);  // 0dB = linear 1.0
 
-    // Output filters — 4D
+    // Output filters
     juce::dsp::ProcessSpec filterSpec;
     filterSpec.sampleRate = sampleRate;
     filterSpec.maximumBlockSize = static_cast<juce::uint32>(maxBlock);
@@ -56,7 +53,7 @@ void TransientEngine::prepare(double sampleRate, int maxBlock)
     lowPassFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     lowPassFilter.setCutoffFrequency(20000.0f);
 
-    // Pre-delay — 4G
+    // Pre-delay
     const int maxPreDelaySamples = static_cast<int>((PRE_DELAY_MAX_MS / 1000.0f)
                                                      * static_cast<float>(sampleRate)) + 1;
     preDelayBufferSize = 1;
@@ -75,13 +72,19 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
 {
     const int numChannels = buffer.getNumChannels();
 
-    // Save dry signal for mix processing
-    for (int ch = 0; ch < numChannels; ++ch)
-        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+    // 7B-4: Skip dry buffer copy when mix is 100%
+    const bool needsDry = (mixSmoothed.getCurrentValue() < 0.999f)
+                       || (mixSmoothed.getTargetValue() < 0.999f);
+
+    if (needsDry)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+            dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+    }
 
     const bool dopplerActive = (currentShape == EnvelopeShape::Doppler);
 
-    // Per-sample processing into wetBuffer
+    // === Loop 1: Generate wet signal into wetBuffer ===
     for (int sample = 0; sample < numSamples; ++sample)
     {
         const float envelopeValue = envelope.getNextSample();
@@ -93,20 +96,13 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
             doppler.trigger(tailSamps);
         }
 
+        // Only intensity and boost advance per-sample in this loop
         const float currentIntensity = intensitySmoothed.getNextValue();
-        const float currentMix = mixSmoothed.getNextValue();
-        const float currentGainDb = outputGainSmoothed.getNextValue();
-        const float currentGainLinear = std::pow(10.0f, currentGainDb / 20.0f);
+        const float boostLinear = transientGainSmoothed.getNextValue();  // Already linear (7B-2)
 
-        // Transient boost — 4B
-        const float boostDB = transientGainSmoothed.getNextValue();
-        const float boostLinear = std::pow(10.0f, boostDB / 20.0f);
-
-        // Effective amplitude with intensity and transient boost
         const float effectiveAmp = 1.0f - currentIntensity + currentIntensity * envelopeValue;
         const float finalAmp = effectiveAmp * (1.0f + (boostLinear - 1.0f) * envelopeValue);
 
-        // Generate source sample once
         float sourceSample = 0.0f;
         if (inputMode != InputMode::ExternalAudio)
             sourceSample = generateSourceSample();
@@ -129,7 +125,6 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
         if (dopplerActive)
             doppler.processSampleStereo(wetL, wetR, wetL, wetR);
 
-        // Pre-delay — 4G
         if (preDelaySamples > 0)
         {
             preDelayBuffer[0][static_cast<size_t>(preDelayWriteIndex)] = wetL;
@@ -142,28 +137,51 @@ void TransientEngine::processBlock(juce::AudioBuffer<float>& buffer, int numSamp
             preDelayWriteIndex = (preDelayWriteIndex + 1) & preDelayBufferMask;
         }
 
-        // Mix dry/wet per-sample
-        const float dryL = dryBuffer.getSample(0, sample);
-        const float dryR = (numChannels > 1) ? dryBuffer.getSample(1, sample) : dryL;
-
-        float outL = dryL * (1.0f - currentMix) + wetL * currentMix;
-        float outR = dryR * (1.0f - currentMix) + wetR * currentMix;
-
-        outL *= currentGainLinear;
-        outR *= currentGainLinear;
-
-        buffer.setSample(0, sample, outL);
+        // Write wet-only to wetBuffer (7B-1: filters apply to wet only)
+        wetBuffer.setSample(0, sample, wetL);
         if (numChannels > 1)
-            buffer.setSample(1, sample, outR);
+            wetBuffer.setSample(1, sample, wetR);
     }
 
-    // Apply output filters — 4D (block-based processing after per-sample loop)
-    juce::dsp::AudioBlock<float> block(buffer.getArrayOfWritePointers(),
-                                        static_cast<size_t>(numChannels),
-                                        static_cast<size_t>(numSamples));
-    juce::dsp::ProcessContextReplacing<float> context(block);
-    highPassFilter.process(context);
-    lowPassFilter.process(context);
+    // === Apply filters to wet signal only (7B-1) ===
+    {
+        juce::dsp::AudioBlock<float> wetBlock(wetBuffer.getArrayOfWritePointers(),
+                                               static_cast<size_t>(numChannels),
+                                               static_cast<size_t>(numSamples));
+        juce::dsp::ProcessContextReplacing<float> wetContext(wetBlock);
+        highPassFilter.process(wetContext);
+        lowPassFilter.process(wetContext);
+    }
+
+    // === Loop 2: Mix filtered wet with dry, apply output gain (7B-1, 7B-4) ===
+    if (needsDry)
+    {
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const float currentMix = mixSmoothed.getNextValue();
+            const float currentGain = outputGainSmoothed.getNextValue();  // Already linear (7B-2)
+
+            for (int ch = 0; ch < numChannels; ++ch)
+            {
+                const float dry = dryBuffer.getSample(ch, sample);
+                const float wet = wetBuffer.getSample(ch, sample);
+                buffer.setSample(ch, sample, (dry * (1.0f - currentMix) + wet * currentMix) * currentGain);
+            }
+        }
+    }
+    else
+    {
+        // Wet only — just apply gain
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const float currentGain = outputGainSmoothed.getNextValue();
+
+            for (int ch = 0; ch < numChannels; ++ch)
+                buffer.setSample(ch, sample, wetBuffer.getSample(ch, sample) * currentGain);
+        }
+        // Keep mixSmoothed in sync
+        mixSmoothed.skip(numSamples);
+    }
 }
 
 void TransientEngine::reset()
@@ -215,16 +233,22 @@ void TransientEngine::setMix(float percent)
 
 void TransientEngine::setInputMode(InputMode mode) { inputMode = mode; }
 
-void TransientEngine::setOutputGain(float dB) { outputGainSmoothed.setTargetValue(dB); }
+// 7B-2: Convert dB to linear once per block, smooth in linear space
+void TransientEngine::setOutputGain(float dB)
+{
+    outputGainSmoothed.setTargetValue(std::pow(10.0f, dB / 20.0f));
+}
 
 void TransientEngine::setAttackTime(float ms) { envelope.setAttackTime(ms); }
 
-void TransientEngine::setTransientGain(float dB) { transientGainSmoothed.setTargetValue(dB); }
+// 7B-2: Convert dB to linear once per block, smooth in linear space
+void TransientEngine::setTransientGain(float dB)
+{
+    transientGainSmoothed.setTargetValue(std::pow(10.0f, dB / 20.0f));
+}
 
 void TransientEngine::setTension(float t) { envelope.setTension(t); }
-
 void TransientEngine::setHPFFrequency(float hz) { highPassFilter.setCutoffFrequency(hz); }
-
 void TransientEngine::setLPFFrequency(float hz) { lowPassFilter.setCutoffFrequency(hz); }
 
 void TransientEngine::setSineFrequency(float hz)

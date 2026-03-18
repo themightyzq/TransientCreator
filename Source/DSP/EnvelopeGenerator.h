@@ -76,6 +76,8 @@ private:
     // Parameter caching
     float cachedTailLengthMs = -1.0f;
     float cachedSilenceGapMs = -1.0f;
+    float cachedAttackTimeMs = -1.0f;
+    float cachedSustainHoldPercent = -1.0f;
 
     // Timing (in samples)
     int tailSamples   = 0;

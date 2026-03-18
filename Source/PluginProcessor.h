@@ -68,7 +68,7 @@ private:
 
     // Output limiter
     juce::dsp::Compressor<float> limiterCompressor;
-    static constexpr float HARD_CEILING_LINEAR = 0.9661f;
+    static constexpr float HARD_CEILING_LINEAR = 0.9441f;  // -0.5 dBFS
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransientCreatorProcessor)
 };

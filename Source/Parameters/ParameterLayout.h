@@ -93,6 +93,7 @@ namespace ParamDefaults
 
     // Input Mode
     inline constexpr int INPUT_MODE_DEFAULT    = 0;
+    inline constexpr int INPUT_MODE_SINE_INDEX = 3;  // Index of Sine Oscillator in inputModeChoices
 
     // Output Gain (dB)
     inline constexpr float OUTPUT_GAIN_MIN     = -24.0f;

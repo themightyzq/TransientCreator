@@ -205,6 +205,16 @@
 
 ---
 
+## Phase 7B: DSP Fixes & Optimization
+- [x] 7B-1: Move filters to wet signal only (was filtering mixed output including dry)
+- [x] 7B-2: Optimize per-sample pow() — smooth gain/boost in linear space, convert dB once per block
+- [x] 7B-3: Cache setAttackTime and setSustainHold (skip recalc when unchanged)
+- [x] 7B-4: Skip dry buffer copy when Mix is 100% (saves memory bandwidth at default)
+- [x] 7B-5: Fix magic number 3 for Sine index — use ParamDefaults::INPUT_MODE_SINE_INDEX
+- [x] 7B-6: Raise limiter threshold -6dB → -1dB, lower ceiling -0.3dBFS → -0.5dBFS (less pumping)
+
+---
+
 ## Phase 8: Testing & Validation
 - [ ] Unit tests for all envelope shapes (EnvelopeGeneratorTests.cpp)
 - [ ] Unit tests for TransientEngine state machine (TransientEngineTests.cpp)
