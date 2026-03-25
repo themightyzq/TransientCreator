@@ -11,9 +11,7 @@ enum class EnvelopeShape
     Exponential = 0,
     Linear,
     Logarithmic,
-    Doppler,
     ReverseSawtooth,
-    Gaussian,
     DoubleTap,
     Percussive
 };
@@ -33,9 +31,11 @@ public:
     void setSilenceGap(float ms);
     void setShape(EnvelopeShape shape);
     void setAttackTime(float ms);
-    void setTension(float t);
     void setHumanize(float percent);
     void setSustainHold(float percent);
+
+    // Set pointer to user-drawn custom curve LUT (owned by caller, must outlive this object)
+    void setCustomCurve(const float* lut, int size);
 
     bool consumeTriggerFlag()
     {
@@ -44,10 +44,15 @@ public:
         return t;
     }
 
+    // Returns normalized position over the full tail+gap cycle (0-1)
+    float getNormalizedCyclePosition() const;
+
     // Static visualization method with hold fraction support.
+    // For Custom shape, pass customCurveLUT and customCurveSize.
     static float computeShapeAtNormalized(float normalizedPos, EnvelopeShape shape,
-                                          float referenceTailSamples, float tension = 1.0f,
-                                          float attackFraction = 0.0f, float holdFraction = 0.0f);
+                                          float attackFraction = 0.0f, float holdFraction = 0.0f,
+                                          const float* customCurveLUT = nullptr,
+                                          int customCurveSize = 0);
 
 private:
     enum class State { Tail, Silence };
@@ -65,7 +70,6 @@ private:
     float tailLengthMs = 150.0f;
     float silenceGapMs = 100.0f;
     float attackTimeMs = 0.1f;
-    float tension = 1.0f;
     float sustainHoldPercent = 0.0f;
 
     // Humanize
@@ -89,12 +93,14 @@ private:
 
     // Pre-computed shape coefficients (based on decaySamples)
     float expDecayRate            = 0.0f;
-    float gaussianSigma           = 1.0f;
     float doubleTapSpacingSamples = 0.0f;
     float doubleTapDecayRate      = 0.0f;
-    float percAttackSamples       = 0.0f;
     float percBodySamples         = 0.0f;
     float percDecayRate           = 0.0f;
+
+    // Custom curve LUT (not owned — pointer set by TransientEngine)
+    const float* customCurveLUT = nullptr;
+    int customCurveSize = 0;
 
     // Trigger flag
     bool justTriggered = false;

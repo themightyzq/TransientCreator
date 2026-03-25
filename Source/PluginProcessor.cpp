@@ -14,8 +14,6 @@ TransientCreatorProcessor::TransientCreatorProcessor()
 {
     tailLengthParam      = apvts.getRawParameterValue(ParamIDs::TAIL_LENGTH);
     silenceGapParam      = apvts.getRawParameterValue(ParamIDs::SILENCE_GAP);
-    intensityParam       = apvts.getRawParameterValue(ParamIDs::INTENSITY);
-    pitchShiftParam      = apvts.getRawParameterValue(ParamIDs::PITCH_SHIFT);
     mixParam             = apvts.getRawParameterValue(ParamIDs::MIX);
     shapeParam           = apvts.getRawParameterValue(ParamIDs::SHAPE);
     syncEnabledParam     = apvts.getRawParameterValue(ParamIDs::SYNC_ENABLED);
@@ -23,17 +21,18 @@ TransientCreatorProcessor::TransientCreatorProcessor()
     inputModeParam       = apvts.getRawParameterValue(ParamIDs::INPUT_MODE);
     outputGainParam      = apvts.getRawParameterValue(ParamIDs::OUTPUT_GAIN);
     limiterOnParam       = apvts.getRawParameterValue(ParamIDs::LIMITER_ON);
-    // Phase 4 new caches
     attackTimeParam      = apvts.getRawParameterValue(ParamIDs::ATTACK_TIME);
     transientGainParam   = apvts.getRawParameterValue(ParamIDs::TRANSIENT_GAIN);
-    envelopeTensionParam = apvts.getRawParameterValue(ParamIDs::ENVELOPE_TENSION);
-    filterHPFParam       = apvts.getRawParameterValue(ParamIDs::FILTER_HPF_FREQ);
-    filterLPFParam       = apvts.getRawParameterValue(ParamIDs::FILTER_LPF_FREQ);
     sineFreqParam        = apvts.getRawParameterValue(ParamIDs::SINE_FREQ);
-    dopplerDirParam      = apvts.getRawParameterValue(ParamIDs::DOPPLER_DIRECTION);
-    preDelayParam        = apvts.getRawParameterValue(ParamIDs::PRE_DELAY);
+    pitchStartParam      = apvts.getRawParameterValue(ParamIDs::PITCH_START);
+    pitchEndParam        = apvts.getRawParameterValue(ParamIDs::PITCH_END);
     humanizeParam        = apvts.getRawParameterValue(ParamIDs::HUMANIZE);
     sustainHoldParam     = apvts.getRawParameterValue(ParamIDs::SUSTAIN_HOLD);
+
+    // Initialize custom curve LUT with default
+    std::copy(sharedState.customCurveStaging.begin(),
+              sharedState.customCurveStaging.end(),
+              customCurveLUT.begin());
 }
 
 TransientCreatorProcessor::~TransientCreatorProcessor() = default;
@@ -55,6 +54,7 @@ void TransientCreatorProcessor::changeProgramName(int, const juce::String&) {}
 void TransientCreatorProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     transientEngine.prepare(sampleRate, samplesPerBlock);
+    transientEngine.setCustomCurve(customCurveLUT.data(), SharedUIState::CUSTOM_CURVE_SIZE);
 
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
@@ -99,12 +99,20 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
+    // Copy custom curve from UI staging if updated
+    if (sharedState.customCurveUpdated.load(std::memory_order_acquire))
+    {
+        std::copy(sharedState.customCurveStaging.begin(),
+                  sharedState.customCurveStaging.end(),
+                  customCurveLUT.begin());
+        sharedState.customCurveUpdated.store(false, std::memory_order_release);
+    }
+
     // Discrete parameters
     const auto currentShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
     const bool syncEnabled = syncEnabledParam->load() >= 0.5f;
     const int currentSyncNote = static_cast<int>(syncNoteParam->load());
     const auto currentInputMode = static_cast<TransientEngine::InputMode>(static_cast<int>(inputModeParam->load()));
-    const auto dopplerDir = static_cast<DopplerProcessor::Direction>(static_cast<int>(dopplerDirParam->load()));
 
     const float tailLengthMs = tailLengthParam->load();
     float silenceGapMs = silenceGapParam->load();
@@ -140,22 +148,21 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     transientEngine.setTailLength(tailLengthMs);
     transientEngine.setSilenceGap(silenceGapMs);
     transientEngine.setShape(currentShape);
-    transientEngine.setIntensity(intensityParam->load());
-    transientEngine.setPitchShift(pitchShiftParam->load());
+    transientEngine.setPitchStart(pitchStartParam->load());
+    transientEngine.setPitchEnd(pitchEndParam->load());
     transientEngine.setMix(mixParam->load());
     transientEngine.setInputMode(currentInputMode);
     transientEngine.setOutputGain(outputGainParam->load());
-    // Phase 4 new parameters
     transientEngine.setAttackTime(attackTimeParam->load());
     transientEngine.setTransientGain(transientGainParam->load());
-    transientEngine.setTension(envelopeTensionParam->load());
-    transientEngine.setHPFFrequency(filterHPFParam->load());
-    transientEngine.setLPFFrequency(filterLPFParam->load());
     transientEngine.setSineFrequency(sineFreqParam->load());
-    transientEngine.setDopplerDirection(dopplerDir);
-    transientEngine.setPreDelay(preDelayParam->load());
     transientEngine.setHumanize(humanizeParam->load());
     transientEngine.setSustainHold(sustainHoldParam->load());
+    transientEngine.setCustomCurve(customCurveLUT.data(), SharedUIState::CUSTOM_CURVE_SIZE);
+
+    // Update playhead position BEFORE processing so it reflects what's about to be heard
+    sharedState.playheadPosition.store(transientEngine.getPlayheadPosition(), std::memory_order_relaxed);
+    sharedState.isInTail.store(transientEngine.getIsInTail(), std::memory_order_relaxed);
 
     transientEngine.processBlock(buffer, buffer.getNumSamples());
 
@@ -185,6 +192,20 @@ void TransientCreatorProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 void TransientCreatorProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
+
+    // Serialize breakpoints as comma-separated "x,y;x,y;..." string
+    juce::String bpStr;
+    for (const auto& bp : sharedState.breakpoints)
+    {
+        if (bpStr.isNotEmpty()) bpStr += ";";
+        bpStr += juce::String(bp.x, 6) + "," + juce::String(bp.y, 6) + "," + juce::String(bp.tension, 4);
+    }
+    state.setProperty("breakpoints", bpStr, nullptr);
+
+    // Also save the LUT for backward compatibility
+    juce::MemoryBlock curveData(customCurveLUT.data(), customCurveLUT.size() * sizeof(float));
+    state.setProperty("customCurve", curveData.toBase64Encoding(), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -193,7 +214,70 @@ void TransientCreatorProcessor::setStateInformation(const void* data, int sizeIn
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     if (xmlState != nullptr && xmlState->hasTagName(apvts.state.getType()))
-        apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+    {
+        auto state = juce::ValueTree::fromXml(*xmlState);
+
+        // Restore breakpoints if present (preferred over raw LUT)
+        bool restoredBreakpoints = false;
+        auto bpVar = state.getProperty("breakpoints");
+        if (bpVar.isString() && bpVar.toString().isNotEmpty())
+        {
+            sharedState.breakpoints.clear();
+            auto pairs = juce::StringArray::fromTokens(bpVar.toString(), ";", "");
+            for (const auto& pair : pairs)
+            {
+                auto xy = juce::StringArray::fromTokens(pair, ",", "");
+                if (xy.size() >= 2)
+                {
+                    const float tension = (xy.size() >= 3) ? xy[2].getFloatValue() : 0.0f;
+                    sharedState.breakpoints.push_back({
+                        xy[0].getFloatValue(),
+                        xy[1].getFloatValue(),
+                        tension
+                    });
+                }
+            }
+
+            if (sharedState.breakpoints.size() >= 2)
+            {
+                sharedState.rebuildLUTFromBreakpoints();
+                std::copy(sharedState.customCurveStaging.begin(),
+                          sharedState.customCurveStaging.end(),
+                          customCurveLUT.begin());
+                std::copy(customCurveLUT.begin(), customCurveLUT.end(),
+                          sharedState.customCurveDisplay.begin());
+                sharedState.customCurveLoaded.store(true, std::memory_order_release);
+                restoredBreakpoints = true;
+            }
+        }
+
+        // Fallback: restore raw LUT if no breakpoints
+        if (!restoredBreakpoints)
+        {
+            auto curveVar = state.getProperty("customCurve");
+            if (curveVar.isString())
+            {
+                juce::MemoryBlock curveData;
+                if (curveData.fromBase64Encoding(curveVar.toString()))
+                {
+                    const size_t expectedSize = customCurveLUT.size() * sizeof(float);
+                    if (curveData.getSize() == expectedSize)
+                    {
+                        std::memcpy(customCurveLUT.data(), curveData.getData(), expectedSize);
+                        std::copy(customCurveLUT.begin(), customCurveLUT.end(),
+                                  sharedState.customCurveDisplay.begin());
+                        std::copy(customCurveLUT.begin(), customCurveLUT.end(),
+                                  sharedState.customCurveStaging.begin());
+                        sharedState.customCurveLoaded.store(true, std::memory_order_release);
+                    }
+                }
+            }
+        }
+
+        state.removeProperty("breakpoints", nullptr);
+        state.removeProperty("customCurve", nullptr);
+        apvts.replaceState(state);
+    }
 }
 
 juce::AudioProcessorEditor* TransientCreatorProcessor::createEditor()

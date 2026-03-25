@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Parameters/ParameterLayout.h"
 #include "DSP/TransientEngine.h"
+#include "SharedState.h"
 
 class TransientCreatorProcessor : public juce::AudioProcessor
 {
@@ -39,12 +40,16 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    // Lock-free shared state for UI communication
+    SharedUIState sharedState;
+
+    // Audio-thread custom curve LUT (copied from staging at block boundary)
+    std::array<float, SharedUIState::CUSTOM_CURVE_SIZE> customCurveLUT {};
+
 private:
     // Caches raw parameter pointers for audio-thread-safe reads
     std::atomic<float>* tailLengthParam      = nullptr;
     std::atomic<float>* silenceGapParam      = nullptr;
-    std::atomic<float>* intensityParam       = nullptr;
-    std::atomic<float>* pitchShiftParam      = nullptr;
     std::atomic<float>* mixParam             = nullptr;
     std::atomic<float>* shapeParam           = nullptr;
     std::atomic<float>* syncEnabledParam     = nullptr;
@@ -52,15 +57,11 @@ private:
     std::atomic<float>* inputModeParam       = nullptr;
     std::atomic<float>* outputGainParam      = nullptr;
     std::atomic<float>* limiterOnParam       = nullptr;
-    // Phase 4 new parameter caches
     std::atomic<float>* attackTimeParam      = nullptr;
     std::atomic<float>* transientGainParam   = nullptr;
-    std::atomic<float>* envelopeTensionParam = nullptr;
-    std::atomic<float>* filterHPFParam       = nullptr;
-    std::atomic<float>* filterLPFParam       = nullptr;
     std::atomic<float>* sineFreqParam        = nullptr;
-    std::atomic<float>* dopplerDirParam      = nullptr;
-    std::atomic<float>* preDelayParam        = nullptr;
+    std::atomic<float>* pitchStartParam      = nullptr;
+    std::atomic<float>* pitchEndParam        = nullptr;
     std::atomic<float>* humanizeParam        = nullptr;
     std::atomic<float>* sustainHoldParam     = nullptr;
 

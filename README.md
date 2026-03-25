@@ -1,29 +1,82 @@
 # Transient Creator
 
-**A JUCE-based VST3 plugin that generates punchy transient events from sustained audio using Doppler-inspired envelope shaping.**
+A VST3/Standalone audio plugin for creating punchy transient events from any audio source. Built with JUCE.
 
 ---
 
-## What Is This?
+## What It Does
 
-Transient Creator is NOT a transient shaper — it's a transient CREATOR. While transient shapers modify existing attacks and sustains, Transient Creator takes any audio input (or its own internal source) and rhythmically sculpts it into short, punchy transient impulses.
+Transient Creator takes any audio input (or its own internal generators) and rhythmically sculpts it into short, shaped transient impulses. It's a transient **creator**, not a transient shaper -- it generates new transient events using a looping envelope engine with a fully interactive curve editor.
 
-Inspired by the Doppler effect: each transient starts at its peak energy (the "apex" — as if the sound source is at its closest point) and then decays outward, compressing sustained audio into tight, rhythmic impacts.
+### Use Cases
+- **Sound design**: Create custom impacts, clicks, hits, and percussive textures
+- **Game audio**: Design one-shot transients with precise pitch sweeps and timing
+- **Film/post**: Build layered whooshes, risers, and punchy stingers
+- **Music production**: Add rhythmic transient layers synced to DAW tempo
 
-### Key Features
-- **8 transient shapes**: Exponential, Linear, Logarithmic, Doppler, Reverse Sawtooth, Gaussian, Double-Tap, Percussive
-- **Attack control**: Shape the onset from instant stick hit (0ms) to soft mallet (10ms)
-- **Transient boost**: Amplify peaks up to +24dB for aggressive transients
-- **Envelope tension/curve**: Warp any shape from gentle to extremely snappy
-- **Doppler pitch-shift**: Variable delay with Recede, Approach, and Fly-by modes
-- **Output filters**: HPF (20–2000Hz) and LPF (200–20kHz) for frequency shaping
-- **Pre-delay**: Offset transients up to 50ms for groove shaping
-- **Humanize**: Per-cycle random variation (±20%) for organic feel
-- **Looping engine**: Continuously fires transients with user-defined timing
-- **Host sync**: Lock transient timing to DAW tempo with note-value subdivisions
-- **4 input sources**: External audio, White Noise, Pink Noise, Sine Oscillator (tunable 20–8000Hz)
-- **Output gain + brickwall limiter**: Push transients hard without clipping
-- **Real-time envelope visualizer**: See your transient shape with attack and tension in real-time
+---
+
+## Features
+
+- **Interactive curve editor** -- click to add breakpoints, drag to reshape, Alt+drag to bend segments. 6 preset shapes as starting points.
+- **6 envelope shapes**: Exponential, Linear, Logarithmic, Reverse Sawtooth, Double Tap, Percussive
+- **Pitch Start / Pitch End** -- sweep pitch from -24 to +24 semitones across the transient. Pitch processes audio before the envelope so timing is always exact.
+- **Attack control** (0-500ms) -- from instant stick hit to slow fade-in
+- **Transient Boost** -- amplify peaks up to +24dB
+- **Sustain Hold** -- hold at peak amplitude before decay begins
+- **Host tempo sync** -- lock transient timing to DAW tempo with note-value subdivisions
+- **4 input sources**: External audio, White Noise, Pink Noise, Sine Oscillator
+- **Humanize** -- per-cycle random timing variation for organic feel
+- **Output gain + brickwall limiter**
+- **Real-time envelope visualizer** with playhead, breakpoint editor, and rate display
+
+---
+
+## Installation
+
+### From Releases
+
+Download the latest build for your platform from the [Releases](../../releases) page. Copy the `.vst3` file to your plugin folder:
+
+| Platform | VST3 Location |
+|----------|---------------|
+| macOS | `~/Library/Audio/Plug-Ins/VST3/` |
+| Windows | `C:\Program Files\Common Files\VST3\` |
+| Linux | `~/.vst3/` |
+
+Restart your DAW. The plugin appears as **Transient Creator** under Effects > Dynamics > Tools.
+
+### Building from Source
+
+**Requirements:** CMake 3.22+, C++17 compiler, platform SDK (Xcode CLI / Visual Studio / ALSA+X11 dev libs)
+
+```bash
+git clone --recursive https://github.com/themightyzq/TransientCreator.git
+cd TransientCreator
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+On macOS, the build produces a Universal Binary (arm64 + x86_64). The VST3 is automatically copied to your plugin folder after building.
+
+---
+
+## Quick Start
+
+1. **Insert** Transient Creator on a track (or use Standalone mode)
+2. **Choose an input**: External Audio processes your track; White Noise/Pink Noise/Sine generate sound internally
+3. **Set Tail Length** to control how long each transient lasts
+4. **Set Gap** to control the silence between transients (or enable SYNC for tempo-locked timing)
+5. **Pick a shape** from the dropdown, or click directly on the curve to add/move breakpoints
+6. **Adjust Pitch Start/End** for pitch sweeps across the transient
+7. **Dial in Boost** to emphasize the transient peak
+
+### Curve Editor Controls
+- **Click** in empty space to add a breakpoint
+- **Drag** a breakpoint to move it
+- **Right-click** a breakpoint to delete it
+- **Alt+drag** between breakpoints to bend the curve segment
+- **Double-click** to reset to the current preset shape
 
 ---
 
@@ -31,99 +84,31 @@ Inspired by the Doppler effect: each transient starts at its peak energy (the "a
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| Tail Length | 5–5000 ms | 50 ms | Duration of the transient decay |
-| Silence Gap | 0–2000 ms | 100 ms | Silence between transients (overridden by Sync) |
-| Shape | 8 shapes | Exponential | Envelope curve type |
-| Attack Time | 0–10 ms | 0.1 ms | Onset ramp time (0 = instant apex) |
-| Intensity | 0–100% | 75% | How much the envelope reshapes audio |
-| Transient Boost | 0–24 dB | 0 dB | Amplify peak relative to sustained level |
-| Curve (Tension) | 0.1–5.0 | 1.0 | Warp envelope shape (< 1 gentle, > 1 snappy) |
-| Pitch Shift | 0–24 st | 12 st | Doppler pitch drop amount (Doppler mode only) |
-| Doppler Direction | 3 modes | Recede | Recede, Approach, or Fly-by sweep |
-| Mix | 0–100% | 100% | Dry/wet blend |
-| HPF | 20–2000 Hz | 20 Hz | High-pass filter on wet signal |
-| LPF | 200–20000 Hz | 20000 Hz | Low-pass filter on wet signal |
-| Pre-Delay | 0–50 ms | 0 ms | Offset transient timing for groove shaping |
-| Humanize | 0–100% | 0% | Per-cycle random variation on timing |
-| Output Gain | -24–+24 dB | 0 dB | Output level boost/cut |
-| Limiter | ON/OFF | ON | Brickwall limiter at -0.3dBFS |
-| Sync | ON/OFF | OFF | Lock timing to DAW tempo |
-| Sync Note | 9 values | 1/4 | Beat subdivision when synced |
-| Input Mode | 4 sources | External | Audio source selection |
-| Osc Frequency | 20–8000 Hz | 440 Hz | Sine oscillator pitch (Sine mode only) |
-
----
-
-## Building
-
-### Prerequisites
-- **CMake** 3.22 or higher
-- **C++ compiler** with C++17 support (GCC 9+, Clang 10+, MSVC 2019+)
-- **JUCE** 7.x (included as git submodule)
-- **Platform SDKs**: Xcode CLI tools (macOS), Visual Studio (Windows), ALSA/JACK dev libs (Linux)
-
-### Clone & Build
-```bash
-git clone --recursive https://github.com/YOUR_USERNAME/TransientCreator.git
-cd TransientCreator
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-```
-
-### Plugin Installation
-After building, the VST3 plugin will be auto-installed to:
-- **macOS**: `~/Library/Audio/Plug-Ins/VST3/`
-- **Windows**: `C:\Program Files\Common Files\VST3\`
-- **Linux**: `~/.vst3/`
-
----
-
-## Project Structure
-```
-Source/
-├── PluginProcessor.*          — Audio processing entry point
-├── PluginEditor.*             — GUI entry point
-├── DSP/
-│   ├── EnvelopeConstants.h    — Shared envelope math constants
-│   ├── EnvelopeGenerator.*    — 8 envelope shapes with attack, tension, humanize
-│   ├── TransientEngine.*      — Core DSP loop, filters, pre-delay, mixing
-│   └── DopplerProcessor.*     — Variable delay line with 3 direction modes
-├── Parameters/
-│   └── ParameterLayout.*      — All 20 parameter definitions (IDs, names, ranges)
-└── UI/
-    ├── LookAndFeel/           — Dark theme styling
-    ├── Components/            — Envelope visualizer, parameter controls
-    └── Panels/                — Main layout panel
-```
-
----
-
-## Signal Chain
-```
-Input (External/Noise/Sine) → Envelope × (Intensity + Boost) → Doppler
-  → Pre-Delay → HPF → LPF → Dry/Wet Mix → Output Gain → Limiter → DAW
-```
-
----
-
-## Dependencies
-- [JUCE](https://juce.com/) — Cross-platform C++ audio framework (modules: `juce_audio_utils`, `juce_dsp`)
-- CMake — Build system
-
----
-
-## Documentation
-- `claude.md` — AI agent operations manual & architecture rules
-- `TODO.md` — Development roadmap & task tracking
-- `Docs/DSP_DESIGN.md` — Technical DSP architecture documentation
-- `Docs/PRESETS.md` — Factory preset definitions
+| Tail Length | 5 ms -- 5 s | 150 ms | Duration of the transient decay |
+| Silence Gap | 0 -- 2 s | 100 ms | Silence between transients |
+| Shape | 6 presets | Exponential | Envelope curve starting point |
+| Attack | 0 -- 500 ms | 0.1 ms | Onset ramp time |
+| Hold | 0 -- 50% | 0% | Hold at peak before decay (% of tail) |
+| Boost | 0 -- 24 dB | 0 dB | Amplify the transient peak |
+| Pitch Start | -24 -- +24 st | 0 st | Pitch at transient start |
+| Pitch End | -24 -- +24 st | 0 st | Pitch at transient end |
+| Mix | 0 -- 100% | 100% | Dry/wet blend |
+| Gain | -24 -- +24 dB | 0 dB | Output level |
+| Humanize | 0 -- 100% | 0% | Random timing variation |
+| Limiter | On/Off | On | Brickwall output limiter |
+| Sync | On/Off | Off | Lock timing to DAW tempo |
+| Sync Note | 1/1 -- 1/16T | 1/4 | Beat subdivision |
+| Input Mode | 4 sources | External | Audio source |
+| Osc Frequency | 20 -- 8000 Hz | 440 Hz | Sine oscillator pitch |
 
 ---
 
 ## License
-[TBD — Choose your license]
+
+MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-## Contributing
-See `claude.md` for code standards and `TODO.md` for current development priorities.
+## Credits
+
+Built by [ZQSFX](https://github.com/themightyzq) using [JUCE](https://juce.com/).
