@@ -1,124 +1,83 @@
 #include "TransientControls.h"
-#include "../../DSP/EnvelopeGenerator.h"
 #include "../LookAndFeel/TransientLookAndFeel.h"
 
 TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
 {
-    shapeParam     = apvts.getRawParameterValue(ParamIDs::SHAPE);
     syncParam      = apvts.getRawParameterValue(ParamIDs::SYNC_ENABLED);
     inputModeParam = apvts.getRawParameterValue(ParamIDs::INPUT_MODE);
 
-    // --- Section labels ---
-    auto setupSectionLabel = [&](juce::Label& label, const juce::String& text)
-    {
-        label.setText(text, juce::dontSendNotification);
-        label.setFont(juce::FontOptions(11.0f));
-        label.setColour(juce::Label::textColourId,
-                        juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.6f));
-        label.setJustificationType(juce::Justification::centredLeft);
-        addAndMakeVisible(label);
-    };
+    // === Vertical faders (purple/timing) ===
+    setupVerticalFader(attackTimeFader, attackTimeLabel, "ATK", ParamDefaults::ATTACK_TIME_DEFAULT);
+    attackTimeFader.setTooltip("Onset ramp time - 0 ms is instant apex, higher values soften the attack");
 
-    setupSectionLabel(timingSectionLabel, "TIMING");
-    setupSectionLabel(shapeSectionLabel, "SHAPE");
-    setupSectionLabel(outputSectionLabel, "OUTPUT");
+    setupVerticalFader(sustainHoldFader, sustainHoldLabel, "HOLD", ParamDefaults::SUSTAIN_HOLD_DEFAULT);
+    sustainHoldFader.setTooltip("Hold at peak amplitude before decay begins (% of tail duration)");
 
-    // --- Timing knobs ---
-    setupSlider(attackTimeSlider, attackTimeLabel, "Attack", ParamDefaults::ATTACK_TIME_DEFAULT);
-    attackTimeSlider.setTextValueSuffix(" ms");
-    attackTimeSlider.setTooltip("Onset ramp time — 0 ms is instant apex, higher values soften the attack");
+    setupVerticalFader(tailLengthFader, tailLengthLabel, "TAIL", ParamDefaults::TAIL_LENGTH_DEFAULT);
+    tailLengthFader.setTooltip("Duration of the transient decay in milliseconds");
 
-    setupSlider(tailLengthSlider, tailLengthLabel, "Tail", ParamDefaults::TAIL_LENGTH_DEFAULT);
-    tailLengthSlider.setTextValueSuffix(" ms");
-    tailLengthSlider.setTooltip("Duration of the transient decay in milliseconds");
+    // === Primary rotary knobs ===
+    setupRotaryKnob(transientGainSlider, transientGainLabel, "Boost", ParamDefaults::TRANSIENT_GAIN_DEFAULT);
+    transientGainSlider.setTooltip("Amplify the transient peak - scales with envelope (0 dB = no boost)");
+    transientGainSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                                   juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
-    setupSlider(silenceGapSlider, silenceGapLabel, "Gap", ParamDefaults::SILENCE_GAP_DEFAULT);
-    silenceGapSlider.setTextValueSuffix(" ms");
-    silenceGapSlider.setTooltip("Silence between transients (overridden when Sync is ON)");
+    setupRotaryKnob(pitchStartSlider, pitchStartLabel, "P.Start", ParamDefaults::PITCH_START_DEFAULT);
+    pitchStartSlider.setTooltip("Pitch offset at transient start (semitones, + = up, - = down)");
+    pitchStartSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                                juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
-    setupSlider(preDelaySlider, preDelayLabel, "Pre-Dly", ParamDefaults::PRE_DELAY_DEFAULT);
-    preDelaySlider.setTextValueSuffix(" ms");
-    preDelaySlider.setTooltip("Offset transient timing for groove shaping");
+    setupRotaryKnob(pitchEndSlider, pitchEndLabel, "P.End", ParamDefaults::PITCH_END_DEFAULT);
+    pitchEndSlider.setTooltip("Pitch offset at transient end (semitones, + = up, - = down)");
+    pitchEndSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                              juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
-    // --- Shaping knobs ---
-    setupSlider(intensitySlider, intensityLabel, "Intensity", ParamDefaults::INTENSITY_DEFAULT);
-    intensitySlider.setTextValueSuffix(" %");
-    intensitySlider.setTooltip("How strongly the envelope reshapes the audio (0% = passthrough)");
-
-    setupSlider(transientGainSlider, transientGainLabel, "Boost", ParamDefaults::TRANSIENT_GAIN_DEFAULT);
-    transientGainSlider.setTextValueSuffix(" dB");
-    transientGainSlider.setTooltip("Amplify the transient peak — scales with envelope (0 dB = no boost)");
-
-    setupSlider(tensionSlider, tensionLabel, "Curve", ParamDefaults::ENVELOPE_TENSION_DEFAULT);
-    tensionSlider.setTooltip("Warp the envelope curve: < 1.0 = gentle decay, > 1.0 = snappy punch");
-
-    setupSlider(sustainHoldSlider, sustainHoldLabel, "Hold", ParamDefaults::SUSTAIN_HOLD_DEFAULT);
-    sustainHoldSlider.setTextValueSuffix(" %");
-    sustainHoldSlider.setTooltip("Hold at peak amplitude before decay begins (% of tail duration)");
-
-    setupSlider(mixSlider, mixLabel, "Mix", ParamDefaults::MIX_DEFAULT);
-    mixSlider.setTextValueSuffix(" %");
+    setupRotaryKnob(mixSlider, mixLabel, "Mix", ParamDefaults::MIX_DEFAULT);
     mixSlider.setTooltip("Blend between dry input (0%) and processed transient output (100%)");
+    mixSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                         juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
 
-    setupSlider(pitchShiftSlider, pitchShiftLabel, "Pitch", ParamDefaults::PITCH_SHIFT_DEFAULT);
-    pitchShiftSlider.setTextValueSuffix(" st");
-    pitchShiftSlider.setTooltip("Doppler pitch drop in semitones over the tail duration");
-
-    setupSlider(sineFreqSlider, sineFreqLabel, "Freq", ParamDefaults::SINE_FREQ_DEFAULT);
-    sineFreqSlider.setTextValueSuffix(" Hz");
-    sineFreqSlider.setTooltip("Frequency of the internal sine oscillator");
-
-    // --- Output knobs ---
-    setupSlider(hpfSlider, hpfLabel, "HPF", ParamDefaults::HPF_FREQ_DEFAULT);
-    hpfSlider.setTextValueSuffix(" Hz");
-    hpfSlider.setTooltip("High-pass filter on the wet signal — removes low frequencies");
-
-    setupSlider(lpfSlider, lpfLabel, "LPF", ParamDefaults::LPF_FREQ_DEFAULT);
-    lpfSlider.setTextValueSuffix(" Hz");
-    lpfSlider.setTooltip("Low-pass filter on the wet signal — removes high frequencies");
-
-    setupSlider(outputGainSlider, outputGainLabel, "Gain", ParamDefaults::OUTPUT_GAIN_DEFAULT);
-    outputGainSlider.setTextValueSuffix(" dB");
+    setupRotaryKnob(outputGainSlider, outputGainLabel, "Gain", ParamDefaults::OUTPUT_GAIN_DEFAULT);
     outputGainSlider.setTooltip("Output level boost or cut in dB");
+    outputGainSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                                juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
 
-    setupSlider(humanizeSlider, humanizeLabel, "Human.", ParamDefaults::HUMANIZE_DEFAULT);
-    humanizeSlider.setTextValueSuffix(" %");
+    // === Secondary rotary knobs ===
+    setupRotaryKnob(silenceGapSlider, silenceGapLabel, "Gap", ParamDefaults::SILENCE_GAP_DEFAULT);
+    silenceGapSlider.setTooltip("Silence between transients (overridden when Sync is ON)");
+    silenceGapSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                                juce::Colour(TransientLookAndFeel::COLOR_TIMING));
+
+    setupRotaryKnob(humanizeSlider, humanizeLabel, "Humanize", ParamDefaults::HUMANIZE_DEFAULT);
     humanizeSlider.setTooltip("Per-cycle random variation on timing for organic feel");
+    humanizeSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                              juce::Colour(TransientLookAndFeel::COLOR_TIMING));
 
-    // --- Dropdowns ---
-    shapeSelector.addItemList(shapeChoices, 1);
-    shapeSelector.setTooltip("Envelope curve shape for the transient");
-    shapeSelector.setTitle("Shape");
-    addAndMakeVisible(shapeSelector);
-    shapeLabel.setText("Shape", juce::dontSendNotification);
-    shapeLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(shapeLabel);
+    setupRotaryKnob(sineFreqSlider, sineFreqLabel, "Freq", ParamDefaults::SINE_FREQ_DEFAULT);
+    sineFreqSlider.setTooltip("Frequency of the internal sine oscillator");
+    sineFreqSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                              juce::Colour(TransientLookAndFeel::COLOR_FREQUENCY));
 
+    // === Dropdowns ===
     inputModeSelector.addItemList(inputModeChoices, 1);
     inputModeSelector.setTooltip("Audio source: external input or internal generator");
     inputModeSelector.setTitle("Input Mode");
     addAndMakeVisible(inputModeSelector);
     inputModeLabel.setText("Input", juce::dontSendNotification);
-    inputModeLabel.setJustificationType(juce::Justification::centred);
+    inputModeLabel.setJustificationType(juce::Justification::centredRight);
+    inputModeLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
     addAndMakeVisible(inputModeLabel);
-
-    dopplerDirSelector.addItemList(dopplerDirectionChoices, 1);
-    dopplerDirSelector.setTooltip("Direction of the Doppler pitch sweep");
-    dopplerDirSelector.setTitle("Doppler Direction");
-    addAndMakeVisible(dopplerDirSelector);
-    dopplerDirLabel.setText("Direction", juce::dontSendNotification);
-    dopplerDirLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(dopplerDirLabel);
 
     syncNoteSelector.addItemList(syncNoteChoices, 1);
     syncNoteSelector.setTooltip("Beat subdivision when synced to host tempo");
     syncNoteSelector.setTitle("Sync Note Value");
     addAndMakeVisible(syncNoteSelector);
     syncNoteLabel.setText("Note", juce::dontSendNotification);
-    syncNoteLabel.setJustificationType(juce::Justification::centred);
+    syncNoteLabel.setJustificationType(juce::Justification::centredRight);
+    syncNoteLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
     addAndMakeVisible(syncNoteLabel);
 
-    // --- Toggles ---
+    // === Toggles ===
     syncToggle.setButtonText("SYNC");
     syncToggle.setTooltip("Lock transient timing to DAW tempo");
     syncToggle.setTitle("Sync to Host");
@@ -129,193 +88,233 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     limiterToggle.setTitle("Output Limiter");
     addAndMakeVisible(limiterToggle);
 
-    // --- APVTS attachments ---
-    tailLengthAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::TAIL_LENGTH, tailLengthSlider);
-    silenceGapAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SILENCE_GAP, silenceGapSlider);
-    intensityAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::INTENSITY, intensitySlider);
-    pitchShiftAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::PITCH_SHIFT, pitchShiftSlider);
+    // === APVTS attachments ===
+    attackTimeAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::ATTACK_TIME, attackTimeFader);
+    sustainHoldAttachment    = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SUSTAIN_HOLD, sustainHoldFader);
+    tailLengthAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::TAIL_LENGTH, tailLengthFader);
+    transientGainAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::TRANSIENT_GAIN, transientGainSlider);
+    pitchStartAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::PITCH_START, pitchStartSlider);
+    pitchEndAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::PITCH_END, pitchEndSlider);
     mixAttachment            = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::MIX, mixSlider);
     outputGainAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::OUTPUT_GAIN, outputGainSlider);
-    attackTimeAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::ATTACK_TIME, attackTimeSlider);
-    transientGainAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::TRANSIENT_GAIN, transientGainSlider);
-    tensionAttachment        = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::ENVELOPE_TENSION, tensionSlider);
-    hpfAttachment            = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::FILTER_HPF_FREQ, hpfSlider);
-    lpfAttachment            = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::FILTER_LPF_FREQ, lpfSlider);
-    sineFreqAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SINE_FREQ, sineFreqSlider);
-    preDelayAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::PRE_DELAY, preDelaySlider);
+    silenceGapAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SILENCE_GAP, silenceGapSlider);
     humanizeAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::HUMANIZE, humanizeSlider);
-    sustainHoldAttachment    = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SUSTAIN_HOLD, sustainHoldSlider);
+    sineFreqAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SINE_FREQ, sineFreqSlider);
+    inputModeAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::INPUT_MODE, inputModeSelector);
+    syncNoteAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::SYNC_NOTE, syncNoteSelector);
+    syncAttachment           = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ParamIDs::SYNC_ENABLED, syncToggle);
+    limiterAttachment        = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ParamIDs::LIMITER_ON, limiterToggle);
 
-    shapeAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::SHAPE, shapeSelector);
-    syncNoteAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::SYNC_NOTE, syncNoteSelector);
-    inputModeAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::INPUT_MODE, inputModeSelector);
-    dopplerDirAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::DOPPLER_DIRECTION, dopplerDirSelector);
-
-    syncAttachment    = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ParamIDs::SYNC_ENABLED, syncToggle);
-    limiterAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ParamIDs::LIMITER_ON, limiterToggle);
-
-    prevDopplerVisible  = static_cast<int>(shapeParam->load()) == static_cast<int>(EnvelopeShape::Doppler);
     prevSyncOn          = syncParam->load() >= 0.5f;
     prevSineFreqVisible = static_cast<int>(inputModeParam->load()) == ParamDefaults::INPUT_MODE_SINE_INDEX;
     updateConditionalState();
     startTimerHz(STATE_CHECK_HZ);
 }
 
-TransientControls::~TransientControls()
-{
-    stopTimer();
-}
+TransientControls::~TransientControls() { stopTimer(); }
 
-void TransientControls::setupSlider(juce::Slider& slider, juce::Label& label,
-                                     const juce::String& labelText, double defaultValue)
+void TransientControls::setupRotaryKnob(juce::Slider& slider, juce::Label& label,
+                                         const juce::String& labelText, double defaultValue)
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 18);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
     slider.setDoubleClickReturnValue(true, defaultValue);
     slider.setTitle(labelText);
     addAndMakeVisible(slider);
-
     label.setText(labelText, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
+    label.setFont(juce::Font(juce::FontOptions(12.0f)));
     addAndMakeVisible(label);
 }
 
-void TransientControls::timerCallback()
+void TransientControls::setupVerticalFader(juce::Slider& slider, juce::Label& label,
+                                            const juce::String& labelText, double defaultValue)
 {
-    updateConditionalState();
+    slider.setSliderStyle(juce::Slider::LinearVertical);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 64, 16);
+    slider.setDoubleClickReturnValue(true, defaultValue);
+    slider.setTitle(labelText);
+    slider.setColour(juce::Slider::trackColourId, juce::Colour(TransientLookAndFeel::COLOR_TIMING));
+    addAndMakeVisible(slider);
+    label.setText(labelText, juce::dontSendNotification);
+    label.setJustificationType(juce::Justification::centred);
+    label.setFont(juce::Font(juce::FontOptions(12.0f)));
+    addAndMakeVisible(label);
 }
+
+void TransientControls::timerCallback() { updateConditionalState(); }
 
 void TransientControls::updateConditionalState()
 {
-    const bool isDoppler = static_cast<int>(shapeParam->load()) == static_cast<int>(EnvelopeShape::Doppler);
-    const bool isSyncOn  = syncParam->load() >= 0.5f;
-    const bool isSine    = static_cast<int>(inputModeParam->load()) == ParamDefaults::INPUT_MODE_SINE_INDEX;
-
-    pitchShiftSlider.setVisible(isDoppler);
-    pitchShiftLabel.setVisible(isDoppler);
-    dopplerDirSelector.setVisible(isDoppler);
-    dopplerDirLabel.setVisible(isDoppler);
+    const bool isSyncOn = syncParam->load() >= 0.5f;
+    const bool isSine = static_cast<int>(inputModeParam->load()) == ParamDefaults::INPUT_MODE_SINE_INDEX;
 
     sineFreqSlider.setVisible(isSine);
     sineFreqLabel.setVisible(isSine);
-
     syncNoteSelector.setVisible(isSyncOn);
     syncNoteLabel.setVisible(isSyncOn);
-
     silenceGapSlider.setEnabled(!isSyncOn);
     silenceGapSlider.setAlpha(isSyncOn ? 0.4f : 1.0f);
     silenceGapLabel.setAlpha(isSyncOn ? 0.4f : 1.0f);
 
-    const bool needsRelayout = (isDoppler != prevDopplerVisible)
-                             || (isSyncOn != prevSyncOn)
-                             || (isSine != prevSineFreqVisible);
-    prevDopplerVisible  = isDoppler;
-    prevSyncOn          = isSyncOn;
+    const bool needsRelayout = (isSyncOn != prevSyncOn) || (isSine != prevSineFreqVisible);
+    prevSyncOn = isSyncOn;
     prevSineFreqVisible = isSine;
-
-    if (needsRelayout)
-        resized();
+    if (needsRelayout) resized();
 }
 
 void TransientControls::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(TransientLookAndFeel::BG_PANEL));
+    g.fillAll(juce::Colour(TransientLookAndFeel::BG_DARK));
+
+    const int faderWidth = 155;
+    const int rightX = faderWidth + 6;
+    const int rightW = getWidth() - rightX;
+    const int bottomStripH = 34;
+
+    const bool sineVisible = sineFreqSlider.isVisible();
+    const int numKnobs = sineVisible ? 8 : 7;
+    const int cellW = rightW / std::max(1, numKnobs);
+
+    const int sep1X = rightX + cellW * 3;
+    const int sep2X = rightX + cellW * (sineVisible ? 6 : 5);
+
+    // Group labels positioned just above the knob label row
+    const int groupLabelY = juce::jmax(0, knobStackTopY - 22);
+
+    g.setFont(juce::Font(juce::FontOptions(18.0f).withStyle("Bold")));
+
+    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_SHAPE).withAlpha(0.45f));
+    g.drawText("SHAPE", rightX, groupLabelY, cellW * 3, 20, juce::Justification::centred);
+
+    const int timingCells = sineVisible ? 3 : 2;
+    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_TIMING).withAlpha(0.45f));
+    g.drawText("TIMING", sep1X, groupLabelY, cellW * timingCells, 20, juce::Justification::centred);
+
+    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_OUTPUT).withAlpha(0.45f));
+    g.drawText("OUTPUT", sep2X, groupLabelY, cellW * 2, 20, juce::Justification::centred);
+
+    // Vertical separators spanning from group labels to above bottom strip
+    const int sepBottom = getHeight() - bottomStripH - 8;
+    g.setColour(juce::Colour(TransientLookAndFeel::KNOB_TRACK).withAlpha(0.5f));
+    g.drawLine(static_cast<float>(sep1X), static_cast<float>(groupLabelY),
+               static_cast<float>(sep1X), static_cast<float>(sepBottom), 0.5f);
+    g.drawLine(static_cast<float>(sep2X), static_cast<float>(groupLabelY),
+               static_cast<float>(sep2X), static_cast<float>(sepBottom), 0.5f);
+
+    // Bottom strip separator
+    const int knobAreaH = getHeight() - bottomStripH - 4;
+    g.setColour(juce::Colour(TransientLookAndFeel::KNOB_TRACK).withAlpha(0.3f));
+    g.drawLine(static_cast<float>(rightX), static_cast<float>(knobAreaH),
+               static_cast<float>(getWidth() - 4), static_cast<float>(knobAreaH), 0.5f);
 }
 
 void TransientControls::resized()
 {
-    auto bounds = getLocalBounds().reduced(8);
+    auto bounds = getLocalBounds();
 
-    auto placeKnob = [](juce::Rectangle<int>& row, int knobWidth, juce::Slider& slider, juce::Label& label)
+    const int faderColumnWidth = 155;
+    auto faderArea = bounds.removeFromLeft(faderColumnWidth);
+    bounds.removeFromLeft(6);
+    auto rightArea = bounds;
+
+    // === LEFT: Envelope fader group ===
     {
-        auto area = row.removeFromLeft(knobWidth).reduced(2);
-        label.setBounds(area.removeFromTop(14));
-        slider.setBounds(area);
-    };
+        auto fa = faderArea;
+        fa.removeFromTop(18);
 
-    // Row 1: Source & Shape dropdowns
-    auto row1 = bounds.removeFromTop(42);
-    {
-        const int sectionCount = dopplerDirSelector.isVisible() ? 3 : 2;
-        const int sectionW = row1.getWidth() / sectionCount;
+        const int faderCount = 3;
+        const int faderCellWidth = fa.getWidth() / faderCount;
 
-        auto shapeArea = row1.removeFromLeft(sectionW).reduced(4);
-        shapeLabel.setBounds(shapeArea.removeFromTop(14));
-        shapeSelector.setBounds(shapeArea);
-
-        auto inputArea = row1.removeFromLeft(sectionW).reduced(4);
-        inputModeLabel.setBounds(inputArea.removeFromTop(14));
-        inputModeSelector.setBounds(inputArea);
-
-        if (dopplerDirSelector.isVisible())
+        for (int i = 0; i < faderCount; ++i)
         {
-            auto dirArea = row1.reduced(4);
-            dopplerDirLabel.setBounds(dirArea.removeFromTop(14));
-            dopplerDirSelector.setBounds(dirArea);
+            auto cell = fa.removeFromLeft(faderCellWidth).reduced(2, 0);
+            juce::Slider* slider = nullptr;
+            juce::Label* label = nullptr;
+            switch (i)
+            {
+                case 0: slider = &attackTimeFader;  label = &attackTimeLabel;  break;
+                case 1: slider = &sustainHoldFader; label = &sustainHoldLabel; break;
+                case 2: slider = &tailLengthFader;  label = &tailLengthLabel;  break;
+                default: break;
+            }
+            if (slider == nullptr) continue;
+            label->setBounds(cell.removeFromTop(16));
+            cell.removeFromTop(2);
+            slider->setBounds(cell);
         }
     }
 
-    // Section label + Row 2: Timing
-    bounds.removeFromTop(2);
-    timingSectionLabel.setBounds(bounds.removeFromTop(12).withWidth(60));
-    auto row2 = bounds.removeFromTop(64);
+    // === RIGHT: Single knob row + bottom strip ===
     {
-        const int knobWidth = row2.getWidth() / 4;
-        placeKnob(row2, knobWidth, attackTimeSlider, attackTimeLabel);
-        placeKnob(row2, knobWidth, tailLengthSlider, tailLengthLabel);
-        placeKnob(row2, knobWidth, silenceGapSlider, silenceGapLabel);
-        placeKnob(row2, knobWidth, preDelaySlider, preDelayLabel);
-    }
+        const int bottomStripH = 34;
+        auto bottomStrip = rightArea.removeFromBottom(bottomStripH);
+        rightArea.removeFromBottom(4);
 
-    // Section label + Row 3: Shape
-    bounds.removeFromTop(2);
-    shapeSectionLabel.setBounds(bounds.removeFromTop(12).withWidth(60));
-    auto row3 = bounds.removeFromTop(64);
-    {
-        int numKnobs = 5;
-        if (pitchShiftSlider.isVisible()) ++numKnobs;
+        auto knobArea = rightArea;
+
+        int numKnobs = 7;
         if (sineFreqSlider.isVisible()) ++numKnobs;
-        const int knobWidth = row3.getWidth() / numKnobs;
+        const int knobCellWidth = knobArea.getWidth() / std::max(1, numKnobs);
 
-        placeKnob(row3, knobWidth, intensitySlider, intensityLabel);
-        placeKnob(row3, knobWidth, transientGainSlider, transientGainLabel);
-        placeKnob(row3, knobWidth, tensionSlider, tensionLabel);
-        placeKnob(row3, knobWidth, sustainHoldSlider, sustainHoldLabel);
-        placeKnob(row3, knobWidth, mixSlider, mixLabel);
-        if (pitchShiftSlider.isVisible())
-            placeKnob(row3, knobWidth, pitchShiftSlider, pitchShiftLabel);
-        if (sineFreqSlider.isVisible())
-            placeKnob(row3, knobWidth, sineFreqSlider, sineFreqLabel);
-    }
-
-    // Section label + Row 4: Output
-    bounds.removeFromTop(2);
-    outputSectionLabel.setBounds(bounds.removeFromTop(12).withWidth(60));
-    auto row4 = bounds.removeFromTop(64);
-    {
-        const int knobWidth = row4.getWidth() / 4;
-        placeKnob(row4, knobWidth, hpfSlider, hpfLabel);
-        placeKnob(row4, knobWidth, lpfSlider, lpfLabel);
-        placeKnob(row4, knobWidth, outputGainSlider, outputGainLabel);
-        placeKnob(row4, knobWidth, humanizeSlider, humanizeLabel);
-    }
-
-    bounds.removeFromTop(4);
-
-    // Row 5: Toggles
-    auto row5 = bounds.removeFromTop(32);
-    {
-        auto syncArea = row5.removeFromLeft(70).reduced(2);
-        syncToggle.setBounds(syncArea);
-
-        if (syncNoteSelector.isVisible())
+        // Centered knob placement: label + knob + value as one tight unit
+        auto placeKnob = [](juce::Rectangle<int>& row, int cellW,
+                            juce::Slider& sl, juce::Label& lb)
         {
-            auto noteArea = row5.removeFromLeft(110).reduced(2);
-            syncNoteLabel.setBounds(noteArea.removeFromTop(14));
-            syncNoteSelector.setBounds(noteArea);
-        }
+            auto cell = row.removeFromLeft(cellW);
 
-        auto limiterArea = row5.removeFromRight(70).reduced(2);
-        limiterToggle.setBounds(limiterArea);
+            const int labelH = 16;
+            const int gapAfterLabel = 1;
+            const int valueH = 20;  // matches setTextBoxStyle height
+            const int gapBeforeValue = 1;
+
+            const int knobDiam = juce::jmin(cell.getWidth() - 8,
+                                             cell.getHeight() - labelH - valueH - gapAfterLabel - gapBeforeValue - 4);
+            const int knobSize = juce::jmax(40, knobDiam);
+
+            const int stackH = labelH + gapAfterLabel + knobSize + gapBeforeValue + valueH;
+            const int topY = cell.getY() + (cell.getHeight() - stackH) / 2;
+
+            lb.setBounds(cell.getX(), topY, cell.getWidth(), labelH);
+
+            const int sliderY = topY + labelH + gapAfterLabel;
+            const int sliderH = knobSize + gapBeforeValue + valueH;
+            sl.setBounds(cell.getX(), sliderY, cell.getWidth(), sliderH);
+        };
+
+        placeKnob(knobArea, knobCellWidth, transientGainSlider, transientGainLabel);
+
+        // Capture the Y position of the first label for paint() group labels
+        knobStackTopY = transientGainLabel.getY();
+
+        placeKnob(knobArea, knobCellWidth, pitchStartSlider, pitchStartLabel);
+        placeKnob(knobArea, knobCellWidth, pitchEndSlider, pitchEndLabel);
+        placeKnob(knobArea, knobCellWidth, silenceGapSlider, silenceGapLabel);
+        placeKnob(knobArea, knobCellWidth, humanizeSlider, humanizeLabel);
+        if (sineFreqSlider.isVisible())
+            placeKnob(knobArea, knobCellWidth, sineFreqSlider, sineFreqLabel);
+        placeKnob(knobArea, knobCellWidth, mixSlider, mixLabel);
+        placeKnob(knobArea, knobCellWidth, outputGainSlider, outputGainLabel);
+
+        // --- Bottom strip ---
+        {
+            auto inputArea = bottomStrip.removeFromLeft(220);
+            inputModeLabel.setBounds(inputArea.removeFromLeft(36).withHeight(26));
+            inputArea.removeFromLeft(4);
+            inputModeSelector.setBounds(inputArea.withHeight(26));
+
+            bottomStrip.removeFromLeft(12);
+
+            syncToggle.setBounds(bottomStrip.removeFromLeft(60).withHeight(26));
+
+            if (syncNoteSelector.isVisible())
+            {
+                bottomStrip.removeFromLeft(4);
+                syncNoteLabel.setBounds(bottomStrip.removeFromLeft(30).withHeight(26));
+                syncNoteSelector.setBounds(bottomStrip.removeFromLeft(70).withHeight(26));
+            }
+
+            limiterToggle.setBounds(bottomStrip.removeFromRight(60).withHeight(26));
+        }
     }
 }

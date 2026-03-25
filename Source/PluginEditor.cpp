@@ -1,14 +1,14 @@
 #include "PluginEditor.h"
 
 TransientCreatorEditor::TransientCreatorEditor(TransientCreatorProcessor& p)
-    : AudioProcessorEditor(&p), processorRef(p), mainPanel(p.apvts)
+    : AudioProcessorEditor(&p), processorRef(p), mainPanel(p.apvts, p.sharedState)
 {
     juce::ignoreUnused(processorRef);
     addAndMakeVisible(mainPanel);
-    setSize(650, 420);
+    setSize(700, 550);
     setResizable(true, true);
-    setResizeLimits(546, 352, 1300, 840);
-    getConstrainer()->setFixedAspectRatio(650.0 / 420.0);
+    setResizeLimits(600, 520, 900, 750);
+    getConstrainer()->setFixedAspectRatio(700.0 / 550.0);
 }
 
 TransientCreatorEditor::~TransientCreatorEditor() = default;

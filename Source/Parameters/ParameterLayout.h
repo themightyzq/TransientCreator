@@ -7,8 +7,6 @@ namespace ParamIDs
     inline constexpr const char* TAIL_LENGTH       = "tailLength";
     inline constexpr const char* SILENCE_GAP        = "silenceGap";
     inline constexpr const char* SHAPE              = "transientShape";
-    inline constexpr const char* INTENSITY          = "intensity";
-    inline constexpr const char* PITCH_SHIFT        = "pitchShift";
     inline constexpr const char* MIX                = "mix";
     inline constexpr const char* SYNC_ENABLED       = "syncEnabled";
     inline constexpr const char* SYNC_NOTE          = "syncNote";
@@ -18,12 +16,9 @@ namespace ParamIDs
     // Phase 4 new parameters
     inline constexpr const char* ATTACK_TIME        = "attackTime";
     inline constexpr const char* TRANSIENT_GAIN     = "transientGain";
-    inline constexpr const char* ENVELOPE_TENSION   = "envelopeTension";
-    inline constexpr const char* FILTER_HPF_FREQ    = "filterHPF";
-    inline constexpr const char* FILTER_LPF_FREQ    = "filterLPF";
+    inline constexpr const char* PITCH_START        = "pitchStart";
+    inline constexpr const char* PITCH_END          = "pitchEnd";
     inline constexpr const char* SINE_FREQ          = "sineFrequency";
-    inline constexpr const char* DOPPLER_DIRECTION  = "dopplerDirection";
-    inline constexpr const char* PRE_DELAY          = "preDelay";
     inline constexpr const char* HUMANIZE           = "humanize";
     inline constexpr const char* SUSTAIN_HOLD       = "sustainHold";
 } // namespace ParamIDs
@@ -33,8 +28,6 @@ namespace ParamNames
     inline constexpr const char* TAIL_LENGTH       = "Tail Length";
     inline constexpr const char* SILENCE_GAP        = "Silence Gap";
     inline constexpr const char* SHAPE              = "Transient Shape";
-    inline constexpr const char* INTENSITY          = "Intensity";
-    inline constexpr const char* PITCH_SHIFT        = "Pitch Shift";
     inline constexpr const char* MIX                = "Mix";
     inline constexpr const char* SYNC_ENABLED       = "Sync to Host";
     inline constexpr const char* SYNC_NOTE          = "Sync Note Value";
@@ -44,12 +37,9 @@ namespace ParamNames
     // Phase 4 new parameters
     inline constexpr const char* ATTACK_TIME        = "Attack Time";
     inline constexpr const char* TRANSIENT_GAIN     = "Transient Boost";
-    inline constexpr const char* ENVELOPE_TENSION   = "Curve";
-    inline constexpr const char* FILTER_HPF_FREQ    = "HPF";
-    inline constexpr const char* FILTER_LPF_FREQ    = "LPF";
+    inline constexpr const char* PITCH_START        = "Pitch Start";
+    inline constexpr const char* PITCH_END          = "Pitch End";
     inline constexpr const char* SINE_FREQ          = "Osc Frequency";
-    inline constexpr const char* DOPPLER_DIRECTION  = "Doppler Direction";
-    inline constexpr const char* PRE_DELAY          = "Pre-Delay";
     inline constexpr const char* HUMANIZE           = "Humanize";
     inline constexpr const char* SUSTAIN_HOLD       = "Hold";
 } // namespace ParamNames
@@ -66,16 +56,6 @@ namespace ParamDefaults
     inline constexpr float SILENCE_GAP_MIN     = 0.0f;
     inline constexpr float SILENCE_GAP_MAX     = 2000.0f;
     inline constexpr float SILENCE_GAP_DEFAULT = 100.0f;
-
-    // Intensity (%)
-    inline constexpr float INTENSITY_MIN       = 0.0f;
-    inline constexpr float INTENSITY_MAX       = 100.0f;
-    inline constexpr float INTENSITY_DEFAULT   = 75.0f;
-
-    // Pitch Shift (semitones)
-    inline constexpr float PITCH_SHIFT_MIN     = 0.0f;
-    inline constexpr float PITCH_SHIFT_MAX     = 24.0f;
-    inline constexpr float PITCH_SHIFT_DEFAULT = 12.0f;
 
     // Mix (Dry/Wet %)
     inline constexpr float MIX_MIN             = 0.0f;
@@ -105,45 +85,30 @@ namespace ParamDefaults
 
     // Attack Time (ms) — 4A
     inline constexpr float ATTACK_TIME_MIN     = 0.0f;
-    inline constexpr float ATTACK_TIME_MAX     = 10.0f;
+    inline constexpr float ATTACK_TIME_MAX     = 500.0f;
     inline constexpr float ATTACK_TIME_DEFAULT = 0.1f;
-    inline constexpr float ATTACK_TIME_SKEW    = 0.5f;
+    inline constexpr float ATTACK_TIME_SKEW    = 0.3f;
 
     // Transient Boost (dB) — 4B
     inline constexpr float TRANSIENT_GAIN_MIN     = 0.0f;
     inline constexpr float TRANSIENT_GAIN_MAX     = 24.0f;
     inline constexpr float TRANSIENT_GAIN_DEFAULT = 0.0f;
 
-    // Envelope Tension / Curve — 4C
-    inline constexpr float ENVELOPE_TENSION_MIN     = 0.1f;
-    inline constexpr float ENVELOPE_TENSION_MAX     = 5.0f;
-    inline constexpr float ENVELOPE_TENSION_DEFAULT = 1.0f;
+    // Pitch Start (semitones)
+    inline constexpr float PITCH_START_MIN     = -24.0f;
+    inline constexpr float PITCH_START_MAX     = 24.0f;
+    inline constexpr float PITCH_START_DEFAULT = 0.0f;
 
-    // HPF Frequency (Hz) — 4D
-    inline constexpr float HPF_FREQ_MIN     = 20.0f;
-    inline constexpr float HPF_FREQ_MAX     = 2000.0f;
-    inline constexpr float HPF_FREQ_DEFAULT = 20.0f;
-    inline constexpr float HPF_FREQ_SKEW    = 0.3f;
-
-    // LPF Frequency (Hz) — 4D
-    inline constexpr float LPF_FREQ_MIN     = 200.0f;
-    inline constexpr float LPF_FREQ_MAX     = 20000.0f;
-    inline constexpr float LPF_FREQ_DEFAULT = 20000.0f;
-    inline constexpr float LPF_FREQ_SKEW    = 0.3f;
+    // Pitch End (semitones)
+    inline constexpr float PITCH_END_MIN     = -24.0f;
+    inline constexpr float PITCH_END_MAX     = 24.0f;
+    inline constexpr float PITCH_END_DEFAULT = 0.0f;
 
     // Sine Oscillator Frequency (Hz) — 4E
     inline constexpr float SINE_FREQ_MIN     = 20.0f;
     inline constexpr float SINE_FREQ_MAX     = 8000.0f;
     inline constexpr float SINE_FREQ_DEFAULT = 440.0f;
     inline constexpr float SINE_FREQ_SKEW    = 0.3f;
-
-    // Doppler Direction — 4F
-    inline constexpr int DOPPLER_DIRECTION_DEFAULT = 0;
-
-    // Pre-Delay (ms) — 4G
-    inline constexpr float PRE_DELAY_MIN     = 0.0f;
-    inline constexpr float PRE_DELAY_MAX     = 50.0f;
-    inline constexpr float PRE_DELAY_DEFAULT = 0.0f;
 
     // Humanize (%) — 4H
     inline constexpr float HUMANIZE_MIN     = 0.0f;
@@ -162,8 +127,8 @@ namespace ParamDefaults
 // Transient shape choice strings (must match EnvelopeShape enum order)
 inline const juce::StringArray shapeChoices
 {
-    "Exponential", "Linear", "Logarithmic", "Doppler",
-    "Reverse Sawtooth", "Gaussian", "Double Tap", "Percussive"
+    "Exponential", "Linear", "Logarithmic",
+    "Reverse Sawtooth", "Double Tap", "Percussive"
 };
 
 // Sync note value choice strings
@@ -177,12 +142,6 @@ inline const juce::StringArray syncNoteChoices
 inline const juce::StringArray inputModeChoices
 {
     "External Audio", "White Noise", "Pink Noise", "Sine Oscillator"
-};
-
-// Doppler direction choice strings — 4F
-inline const juce::StringArray dopplerDirectionChoices
-{
-    "Recede", "Approach", "Fly-by"
 };
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

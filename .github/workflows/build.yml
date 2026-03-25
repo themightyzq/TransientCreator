@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            cmake-args: -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          - os: windows-latest
+            cmake-args: ""
+          - os: ubuntu-latest
+            cmake-args: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxfixes-dev libxinerama-dev libxrandr-dev libxrender-dev libwebkit2gtk-4.0-dev libcurl4-openssl-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake-args }}
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload VST3 (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TransientCreator-macOS-VST3
+          path: build/TransientCreator_artefacts/Release/VST3/*.vst3
+
+      - name: Upload VST3 (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TransientCreator-Windows-VST3
+          path: build/TransientCreator_artefacts/Release/VST3/*.vst3
+
+      - name: Upload VST3 (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TransientCreator-Linux-VST3
+          path: build/TransientCreator_artefacts/Release/VST3/*.vst3

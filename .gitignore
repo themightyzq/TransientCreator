@@ -1,13 +1,36 @@
+# Build
 build/
 cmake-build-*/
-.DS_Store
-*.o
-*.d
-*.vst3
-*.component
-*.app
+CMakeUserPresets.json
+
+# IDE
 .idea/
 .vscode/
 *.user
-CMakeUserPresets.json
+
+# OS
+.DS_Store
+
+# Compiled objects
+*.o
+*.d
+
+# Plugin binaries (built locally)
+*.vst3
+*.component
+*.app
+
+# Internal dev files (not customer-facing)
+.claude/
+claude.md
+TODO.md
+AUDIT_REPORT.md
+JUCE_VST3_BEST_PRACTICES.md
+JUCE_VST3_UI_UX_BEST_PRACTICES.md
+Source.zip
+
+# Tool-specific
+.diversion/
+.dvignore
+
 # JUCE is tracked as a git submodule — do not ignore
