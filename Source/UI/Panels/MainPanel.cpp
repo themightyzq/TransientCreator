@@ -75,7 +75,7 @@ void MainPanel::paint(juce::Graphics& g)
                juce::Justification::centred);
     g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM));
     g.setFont(juce::Font(juce::FontOptions(9.0f)));
-    g.drawText("ZQSFX", header.reduced(12, 0).withTrimmedTop(30).withHeight(14),
+    g.drawText("ZQ SFX", header.reduced(12, 0).withTrimmedTop(30).withHeight(14),
                juce::Justification::centred);
 
     // --- Fader group background ---

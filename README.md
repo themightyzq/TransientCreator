@@ -111,4 +111,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Credits
 
-Built by [ZQSFX](https://github.com/themightyzq) using [JUCE](https://juce.com/).
+Built by [ZQ SFX](https://github.com/themightyzq) using [JUCE](https://juce.com/).

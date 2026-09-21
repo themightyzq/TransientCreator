@@ -19,11 +19,12 @@ set(PLUGIN_FORMATS VST3 Standalone)
 juce_add_plugin(TransientCreator
     # === COMPANY INFO ===
     COMPANY_NAME "ZQ SFX"
-    COMPANY_WEBSITE "https://github.com/user"
+    COMPANY_WEBSITE "https://www.zq-sfx.com"
     COMPANY_EMAIL "connect@zq-sfx.com"
+    COMPANY_COPYRIGHT "Copyright (c) 2026 ZQ SFX"
 
     # === UNIQUE IDENTIFIERS ===
-    PLUGIN_MANUFACTURER_CODE Zqsf
+    PLUGIN_MANUFACTURER_CODE ZQSF
     PLUGIN_CODE TrCr
     BUNDLE_ID "com.zqsfx.transientcreator"
 
