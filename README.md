@@ -105,7 +105,13 @@ On macOS, the build produces a Universal Binary (arm64 + x86_64). The VST3 is au
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+Copyright (c) 2026 ZQ SFX.
+
+Licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). See
+[LICENSE](LICENSE). Built with [JUCE](https://juce.com), used under its AGPLv3 option, which
+GPL-3.0 is compatible with.
+
+Releases before 2026-09-21 were offered under the MIT License; that grant stands for those copies.
 
 ---
 
