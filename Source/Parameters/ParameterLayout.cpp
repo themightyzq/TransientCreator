@@ -15,7 +15,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             ParamDefaults::TAIL_LENGTH_SKEW),
         ParamDefaults::TAIL_LENGTH_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("ms")
             .withStringFromValueFunction([](float v, int) -> juce::String {
                 if (v >= 1000.0f) return juce::String(v / 1000.0f, 2) + " s";
                 if (v < 10.0f)    return juce::String(v, 2) + " ms";
@@ -33,7 +32,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::SILENCE_GAP_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("ms")
             .withStringFromValueFunction([](float v, int) -> juce::String {
                 if (v >= 1000.0f) return juce::String(v / 1000.0f, 2) + " s";
                 if (v < 10.0f)    return juce::String(v, 1) + " ms";
@@ -58,7 +56,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::MIX_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("%")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " %"; })));
 
     // Sync to Host (bool)
@@ -91,7 +88,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::OUTPUT_GAIN_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("dB")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " dB"; })));
 
     // Limiter On/Off (bool)
@@ -113,7 +109,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             ParamDefaults::ATTACK_TIME_SKEW),
         ParamDefaults::ATTACK_TIME_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("ms")
             .withStringFromValueFunction([](float v, int) -> juce::String {
                 if (v >= 1000.0f) return juce::String(v / 1000.0f, 2) + " s";
                 if (v < 1.0f)     return juce::String(v, 2) + " ms";
@@ -131,7 +126,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::TRANSIENT_GAIN_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("dB")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " dB"; })));
 
     // Pitch Start (semitones)
@@ -144,7 +138,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::PITCH_START_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("st")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " st"; })));
 
     // Pitch End (semitones)
@@ -157,7 +150,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::PITCH_END_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("st")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " st"; })));
 
     // Sine Oscillator Frequency (Hz) — 4E
@@ -171,7 +163,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             ParamDefaults::SINE_FREQ_SKEW),
         ParamDefaults::SINE_FREQ_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("Hz")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " Hz"; })));
 
     // Humanize (%) — 4H
@@ -184,7 +175,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::HUMANIZE_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("%")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " %"; })));
 
     // Sustain Hold (%) — 7A
@@ -197,7 +187,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             0.1f),
         ParamDefaults::SUSTAIN_HOLD_DEFAULT,
         juce::AudioParameterFloatAttributes()
-            .withLabel("%")
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " %"; })));
 
     return layout;

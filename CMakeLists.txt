@@ -94,3 +94,12 @@ target_link_libraries(TransientCreator
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+# === Unit tests (JUCE UnitTest framework, no external dependency) ===
+# Tests/ lives in the authoritative VCS (Diversion), not the minimal git mirror,
+# so guard on its presence: the mirror configures fine without it.
+option(TRANSIENTCREATOR_BUILD_TESTS "Build the DSP unit-test runner" ON)
+if(TRANSIENTCREATOR_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/CMakeLists.txt")
+    enable_testing()
+    add_subdirectory(Tests)
+endif()
