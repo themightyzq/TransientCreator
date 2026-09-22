@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <zqsfx_ui/zqsfx_ui.h>
 #include "../../Parameters/ParameterLayout.h"
 
 class TransientControls : public juce::Component, private juce::Timer
@@ -22,6 +23,12 @@ private:
                             const juce::String& labelText, double defaultValue);
 
     static constexpr int STATE_CHECK_HZ = 15;
+
+    // Fader-column section container (style guide section 6): a real zqsfx::ui::Panel, titled
+    // "Envelope", drawn as a CHILD so it actually paints on top of this component's own
+    // fillAll() background (see .cpp for why the pre-migration version of this panel, drawn by
+    // the parent MainPanel, was silently painted over and never visible).
+    zqsfx::ui::Panel envelopePanel { "Envelope" };
 
     // Vertical faders
     juce::Slider attackTimeFader, sustainHoldFader, tailLengthFader;

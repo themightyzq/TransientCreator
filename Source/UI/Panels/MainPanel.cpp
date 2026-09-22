@@ -5,9 +5,14 @@ MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& s
       envelopeVisualizer(apvts, sharedState),
       transientControls(apvts)
 {
-    setLookAndFeel(&lookAndFeel);
     addAndMakeVisible(envelopeVisualizer);
     addAndMakeVisible(transientControls);
+
+    // The ZQ SFX mark (style guide section 5): header row, far right; also the About-box
+    // trigger (LogoMark sets its own tooltip/title/description to "About Transient Creator"
+    // already).
+    logo.onClick = [this] { showAboutBox(); };
+    addAndMakeVisible(logo);
 
     // Shape selector bar
     shapeParam = apvts.getRawParameterValue(ParamIDs::SHAPE);
@@ -22,9 +27,12 @@ MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& s
     shapeSelector.addItemList(shapeChoices, 1);
     shapeSelector.setTooltip("Envelope curve shape preset");
     shapeSelector.setTitle("Shape");
+    shapeSelector.setDescription(shapeSelector.getTooltip());
     addAndMakeVisible(shapeSelector);
 
     shapePrevButton.setTooltip("Previous shape");
+    shapePrevButton.setTitle("Previous shape");
+    shapePrevButton.setDescription(shapePrevButton.getTooltip());
     shapePrevButton.onClick = [this]()
     {
         if (auto* param = apvtsRef.getParameter(ParamIDs::SHAPE))
@@ -38,6 +46,8 @@ MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& s
     addAndMakeVisible(shapePrevButton);
 
     shapeNextButton.setTooltip("Next shape");
+    shapeNextButton.setTitle("Next shape");
+    shapeNextButton.setDescription(shapeNextButton.getTooltip());
     shapeNextButton.onClick = [this]()
     {
         if (auto* param = apvtsRef.getParameter(ParamIDs::SHAPE))
@@ -54,14 +64,28 @@ MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& s
         apvts, ParamIDs::SHAPE, shapeSelector);
 }
 
-MainPanel::~MainPanel()
+MainPanel::~MainPanel() = default;
+
+void MainPanel::showAboutBox()
 {
-    setLookAndFeel(nullptr);
+    // ASCII-only (style guide section 5 / migration spec); product name + version from the real
+    // build (JucePlugin_VersionString, generated from CMakeLists.txt's project(... VERSION ...)),
+    // not a hand-maintained literal that could drift from it.
+    juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::InfoIcon, "About Transient Creator",
+        juce::String("Transient Creator ") + JucePlugin_VersionString +
+            "\n\nZQ SFX - https://www.zq-sfx.com - connect@zq-sfx.com\n"
+            "Free software under GPL-3.0-or-later. Built with JUCE.\n"
+            "Fonts: Barlow Condensed, VT323, IBM Plex Mono (SIL OFL).\n"
+            "Knobs: CC0 designs from the g200kg KnobGallery.",
+        "Close", this);
 }
 
 void MainPanel::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(TransientLookAndFeel::BG_DARK));
+    // Window background = house chassis gradient (style guide section 2 / migration spec) in
+    // place of the old flat BG_DARK fill.
+    g.setGradientFill(zqsfx::ui::gradients::chassis(getLocalBounds().toFloat()));
+    g.fillAll();
 
     auto bounds = getLocalBounds();
 
@@ -69,37 +93,13 @@ void MainPanel::paint(juce::Graphics& g)
     auto header = bounds.removeFromTop(48);
     g.setColour(juce::Colour(TransientLookAndFeel::ACCENT).withAlpha(0.4f));
     g.fillRect(12, 3, getWidth() - 24, 2);
+    // Product wordmark: stays with the product (style guide section 1), not routed through the
+    // house LookAndFeel's fonts. Vertically re-centred in the header now that the old "ZQ SFX"
+    // caption line beneath it is gone (replaced by the LogoMark at the header's far right).
     g.setColour(juce::Colour(TransientLookAndFeel::TEXT_PRIMARY));
     g.setFont(juce::Font(juce::FontOptions(15.0f).withStyle("Bold")));
-    g.drawText("Transient Creator", header.reduced(12, 0).withTrimmedTop(10).withHeight(20),
+    g.drawText("Transient Creator", header.reduced(12, 0).withTrimmedTop(14).withHeight(20),
                juce::Justification::centred);
-    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM));
-    g.setFont(juce::Font(juce::FontOptions(9.0f)));
-    g.drawText("ZQ SFX", header.reduced(12, 0).withTrimmedTop(30).withHeight(14),
-               juce::Justification::centred);
-
-    // --- Fader group background ---
-    auto contentCalc = getLocalBounds();
-    contentCalc.removeFromTop(48);
-    contentCalc.removeFromBottom(16);
-    auto contentR = contentCalc.reduced(8, 4);
-    auto calcVizH = static_cast<int>(contentR.getHeight() * 0.35f);
-    int controlsTop = contentR.getY() + calcVizH + 28 + 6;  // viz + shape bar + gap
-
-    auto faderBg = juce::Rectangle<int>(8, controlsTop, 155,
-                                         getHeight() - controlsTop - 16 - 4);
-    g.setColour(juce::Colour(TransientLookAndFeel::BG_PANEL));
-    g.fillRoundedRectangle(faderBg.toFloat(), 6.0f);
-
-    // ENVELOPE label at top of fader panel
-    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_TIMING).withAlpha(0.6f));
-    g.setFont(juce::Font(juce::FontOptions(8.0f).withStyle("Bold")));
-    g.drawText("ENVELOPE", faderBg.removeFromTop(16), juce::Justification::centred);
-
-    // Thin underline
-    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_TIMING).withAlpha(0.2f));
-    g.drawLine(static_cast<float>(faderBg.getX() + 8), static_cast<float>(faderBg.getY()),
-               static_cast<float>(faderBg.getRight() - 8), static_cast<float>(faderBg.getY()), 0.5f);
 
     // --- Footer ---
     auto footer = getLocalBounds().removeFromBottom(16);
@@ -111,7 +111,14 @@ void MainPanel::paint(juce::Graphics& g)
 void MainPanel::resized()
 {
     auto bounds = getLocalBounds();
-    bounds.removeFromTop(48);
+    auto header = bounds.removeFromTop(48);
+
+    // ZQ SFX mark (style guide section 5): header row, far right, at least 24 px tall. Reserved
+    // first so it is always the rightmost element regardless of window width; the wordmark's
+    // painted text (paint()) is centred across the whole header and has ample room to spare even
+    // at the 600 px minimum width.
+    logo.setBounds(header.reduced(12, 0).removeFromRight(28).withSizeKeepingCentre(28, 28));
+
     bounds.removeFromBottom(16);
     auto content = bounds.reduced(8, 4);
 

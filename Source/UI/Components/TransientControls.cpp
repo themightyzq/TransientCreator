@@ -1,67 +1,90 @@
 #include "TransientControls.h"
 #include "../LookAndFeel/TransientLookAndFeel.h"
 
+namespace
+{
+    // Accessibility floor (style guide section 8): setDescription is called AFTER each control's
+    // own setTooltip() call site sets its final tooltip text, so this always mirrors it exactly
+    // -- kept as a tiny helper so the intent ("description = tooltip text") reads clearly at each
+    // call site instead of repeating the tooltip string a second time.
+    void mirrorTooltipToDescription(juce::Slider& s) { s.setDescription(s.getTooltip()); }
+}
+
 TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
 {
     syncParam      = apvts.getRawParameterValue(ParamIDs::SYNC_ENABLED);
     inputModeParam = apvts.getRawParameterValue(ParamIDs::INPUT_MODE);
 
-    // === Vertical faders (purple/timing) ===
+    // Added first (behind the faders it frames) so it paints as a child ON TOP of this
+    // component's own fillAll() background but BELOW the fader sliders/labels added next --
+    // see the header comment on envelopePanel.
+    addAndMakeVisible(envelopePanel);
+
+    // === Vertical faders (timing) ===
     setupVerticalFader(attackTimeFader, attackTimeLabel, "ATK", ParamDefaults::ATTACK_TIME_DEFAULT);
     attackTimeFader.setTooltip("Onset ramp time - 0 ms is instant apex, higher values soften the attack");
+    mirrorTooltipToDescription(attackTimeFader);
 
     setupVerticalFader(sustainHoldFader, sustainHoldLabel, "HOLD", ParamDefaults::SUSTAIN_HOLD_DEFAULT);
     sustainHoldFader.setTooltip("Hold at peak amplitude before decay begins (% of tail duration)");
+    mirrorTooltipToDescription(sustainHoldFader);
 
     setupVerticalFader(tailLengthFader, tailLengthLabel, "TAIL", ParamDefaults::TAIL_LENGTH_DEFAULT);
     tailLengthFader.setTooltip("Duration of the transient decay in milliseconds");
+    mirrorTooltipToDescription(tailLengthFader);
 
     // === Primary rotary knobs ===
+    // Per-slider rotarySliderFillColourId tricks are gone (the house filmstrip knobs draw their
+    // own pointer and consult no per-slider colour at all -- zqsfx::ui::LookAndFeel::
+    // drawRotarySlider / drawVectorKnob). The section/channel meaning that colour used to carry
+    // is now on each knob's own Label instead (never colour alone: label text + position under
+    // the coloured "SHAPE"/"TIMING"/"OUTPUT"/group header + this per-knob label colour).
     setupRotaryKnob(transientGainSlider, transientGainLabel, "Boost", ParamDefaults::TRANSIENT_GAIN_DEFAULT);
     transientGainSlider.setTooltip("Amplify the transient peak - scales with envelope (0 dB = no boost)");
-    transientGainSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                                   juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
+    mirrorTooltipToDescription(transientGainSlider);
+    transientGainLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
     setupRotaryKnob(pitchStartSlider, pitchStartLabel, "P.Start", ParamDefaults::PITCH_START_DEFAULT);
     pitchStartSlider.setTooltip("Pitch offset at transient start (semitones, + = up, - = down)");
-    pitchStartSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                                juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
+    mirrorTooltipToDescription(pitchStartSlider);
+    pitchStartLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
     setupRotaryKnob(pitchEndSlider, pitchEndLabel, "P.End", ParamDefaults::PITCH_END_DEFAULT);
     pitchEndSlider.setTooltip("Pitch offset at transient end (semitones, + = up, - = down)");
-    pitchEndSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                              juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
+    mirrorTooltipToDescription(pitchEndSlider);
+    pitchEndLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
     setupRotaryKnob(mixSlider, mixLabel, "Mix", ParamDefaults::MIX_DEFAULT);
     mixSlider.setTooltip("Blend between dry input (0%) and processed transient output (100%)");
-    mixSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                         juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
+    mirrorTooltipToDescription(mixSlider);
+    mixLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
 
     setupRotaryKnob(outputGainSlider, outputGainLabel, "Gain", ParamDefaults::OUTPUT_GAIN_DEFAULT);
     outputGainSlider.setTooltip("Output level boost or cut in dB");
-    outputGainSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                                juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
+    mirrorTooltipToDescription(outputGainSlider);
+    outputGainLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
 
     // === Secondary rotary knobs ===
     setupRotaryKnob(silenceGapSlider, silenceGapLabel, "Gap", ParamDefaults::SILENCE_GAP_DEFAULT);
     silenceGapSlider.setTooltip("Silence between transients (overridden when Sync is ON)");
-    silenceGapSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                                juce::Colour(TransientLookAndFeel::COLOR_TIMING));
+    mirrorTooltipToDescription(silenceGapSlider);
+    silenceGapLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_TIMING));
 
     setupRotaryKnob(humanizeSlider, humanizeLabel, "Humanize", ParamDefaults::HUMANIZE_DEFAULT);
     humanizeSlider.setTooltip("Per-cycle random variation on timing for organic feel");
-    humanizeSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                              juce::Colour(TransientLookAndFeel::COLOR_TIMING));
+    mirrorTooltipToDescription(humanizeSlider);
+    humanizeLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_TIMING));
 
     setupRotaryKnob(sineFreqSlider, sineFreqLabel, "Freq", ParamDefaults::SINE_FREQ_DEFAULT);
     sineFreqSlider.setTooltip("Frequency of the internal sine oscillator");
-    sineFreqSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                              juce::Colour(TransientLookAndFeel::COLOR_FREQUENCY));
+    mirrorTooltipToDescription(sineFreqSlider);
+    sineFreqLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_FREQUENCY));
 
     // === Dropdowns ===
     inputModeSelector.addItemList(inputModeChoices, 1);
     inputModeSelector.setTooltip("Audio source: external input or internal generator");
     inputModeSelector.setTitle("Input Mode");
+    inputModeSelector.setDescription(inputModeSelector.getTooltip());
     addAndMakeVisible(inputModeSelector);
     inputModeLabel.setText("Input", juce::dontSendNotification);
     inputModeLabel.setJustificationType(juce::Justification::centredRight);
@@ -71,6 +94,7 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     syncNoteSelector.addItemList(syncNoteChoices, 1);
     syncNoteSelector.setTooltip("Beat subdivision when synced to host tempo");
     syncNoteSelector.setTitle("Sync Note Value");
+    syncNoteSelector.setDescription(syncNoteSelector.getTooltip());
     addAndMakeVisible(syncNoteSelector);
     syncNoteLabel.setText("Note", juce::dontSendNotification);
     syncNoteLabel.setJustificationType(juce::Justification::centredRight);
@@ -81,11 +105,13 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     syncToggle.setButtonText("SYNC");
     syncToggle.setTooltip("Lock transient timing to DAW tempo");
     syncToggle.setTitle("Sync to Host");
+    syncToggle.setDescription(syncToggle.getTooltip());
     addAndMakeVisible(syncToggle);
 
     limiterToggle.setButtonText("LIMIT");
     limiterToggle.setTooltip("Brickwall output limiter to prevent clipping");
     limiterToggle.setTitle("Output Limiter");
+    limiterToggle.setDescription(limiterToggle.getTooltip());
     addAndMakeVisible(limiterToggle);
 
     // === APVTS attachments ===
@@ -184,15 +210,29 @@ void TransientControls::paint(juce::Graphics& g)
 
     g.setFont(juce::Font(juce::FontOptions(18.0f).withStyle("Bold")));
 
+    // Section title + a short coloured bar beside it (style guide section 6 / migration spec:
+    // "keep each section's channel colour as a small marker beside its title... so the section
+    // colour is labelled, not just applied"). The group NAME text is already a non-colour cue on
+    // its own; this bar is the extra reinforcement the spec calls for.
+    auto drawGroupMarker = [&g] (int cellX, int cellW2, int y, juce::uint32 colourValue)
+    {
+        const int barW = 28;
+        g.setColour(juce::Colour(colourValue).withAlpha(0.7f));
+        g.fillRect(cellX + cellW2 / 2 - barW / 2, y + 21, barW, 2);
+    };
+
     g.setColour(juce::Colour(TransientLookAndFeel::COLOR_SHAPE).withAlpha(0.45f));
     g.drawText("SHAPE", rightX, groupLabelY, cellW * 3, 20, juce::Justification::centred);
+    drawGroupMarker(rightX, cellW * 3, groupLabelY, TransientLookAndFeel::COLOR_SHAPE);
 
     const int timingCells = sineVisible ? 3 : 2;
     g.setColour(juce::Colour(TransientLookAndFeel::COLOR_TIMING).withAlpha(0.45f));
     g.drawText("TIMING", sep1X, groupLabelY, cellW * timingCells, 20, juce::Justification::centred);
+    drawGroupMarker(sep1X, cellW * timingCells, groupLabelY, TransientLookAndFeel::COLOR_TIMING);
 
     g.setColour(juce::Colour(TransientLookAndFeel::COLOR_OUTPUT).withAlpha(0.45f));
     g.drawText("OUTPUT", sep2X, groupLabelY, cellW * 2, 20, juce::Justification::centred);
+    drawGroupMarker(sep2X, cellW * 2, groupLabelY, TransientLookAndFeel::COLOR_OUTPUT);
 
     // Vertical separators spanning from group labels to above bottom strip
     const int sepBottom = getHeight() - bottomStripH - 8;
@@ -219,9 +259,13 @@ void TransientControls::resized()
     auto rightArea = bounds;
 
     // === LEFT: Envelope fader group ===
+    // Real zqsfx::ui::Panel, titled "Envelope" -- hard-edged face, silkTitle text over a
+    // ruleTitle hairline (style guide section 6), sized to frame the whole ATK/HOLD/TAIL column.
+    envelopePanel.setBounds(faderArea.withTrimmedBottom(4));
     {
-        auto fa = faderArea;
-        fa.removeFromTop(18);
+        // Inset so the faders and their LCD readouts sit inside the panel face, not on its border.
+        auto fa = faderArea.withTrimmedBottom(4).reduced(6, 0).withTrimmedBottom(8);
+        fa.removeFromTop(28);  // room for envelopePanel's own title + hairline
 
         const int faderCount = 3;
         const int faderCellWidth = fa.getWidth() / faderCount;

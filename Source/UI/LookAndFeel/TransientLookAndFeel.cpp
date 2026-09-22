@@ -2,98 +2,60 @@
 
 TransientLookAndFeel::TransientLookAndFeel()
 {
-    setColour(juce::Slider::textBoxTextColourId, juce::Colour(TEXT_PRIMARY));
-    setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(KNOB_BG));
-    setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-
-    setColour(juce::ComboBox::backgroundColourId, juce::Colour(KNOB_BG));
-    setColour(juce::ComboBox::textColourId, juce::Colour(TEXT_PRIMARY));
-    setColour(juce::ComboBox::outlineColourId, juce::Colour(KNOB_TRACK));
-    setColour(juce::ComboBox::arrowColourId, juce::Colour(TEXT_DIM));
-
-    setColour(juce::PopupMenu::backgroundColourId, juce::Colour(BG_PANEL));
-    setColour(juce::PopupMenu::textColourId, juce::Colour(TEXT_PRIMARY));
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(ACCENT));
-    setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(TEXT_PRIMARY));
-
-    setColour(juce::Label::textColourId, juce::Colour(TEXT_DIM));
+    // The base zqsfx::ui::LookAndFeel constructor already sets the house colours this class used
+    // to set itself: ComboBox/PopupMenu -> LCD glass, Slider textbox -> LCD glass + glow,
+    // TextButton -> btn gradient / accent-on, Label -> silkLabel, TooltipWindow/AlertWindow/
+    // TextEditor -> house tokens. Nothing here needs to re-set or override any of that.
+    // rotarySliderFillColourId is gone too: the house's filmstrip knobs carry their own pointer
+    // and consult no per-slider colour at all (see zqsfx::ui::LookAndFeel::drawRotarySlider /
+    // drawVectorKnob).
 }
 
-void TransientLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
-                                             float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
-                                             juce::Slider& slider)
+// ---------------------------------------------------------------------- Toggle buttons
+
+void TransientLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,
+                                             bool /*shouldDrawButtonAsHighlighted*/,
+                                             bool /*shouldDrawButtonAsDown*/)
 {
-    const float radius = static_cast<float>(juce::jmin(width, height)) * 0.4f;
-    const float centreX = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
-    const float centreY = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
-    const float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
+    namespace colour = zqsfx::ui::colour;
 
-    // Background circle
-    g.setColour(juce::Colour(KNOB_BG));
-    g.fillEllipse(centreX - radius, centreY - radius, radius * 2.0f, radius * 2.0f);
+    const auto bounds = button.getLocalBounds().toFloat();
+    const bool on = button.getToggleState();
 
-    // Track arc
-    const float trackWidth = 3.5f;
-    juce::Path trackArc;
-    trackArc.addCentredArc(centreX, centreY, radius - trackWidth, radius - trackWidth,
-                           0.0f, rotaryStartAngle, rotaryEndAngle, true);
-    g.setColour(juce::Colour(KNOB_TRACK));
-    g.strokePath(trackArc, juce::PathStrokeType(trackWidth, juce::PathStrokeType::curved,
-                                                 juce::PathStrokeType::rounded));
-
-    // Midpoint reference dot on the arc track
+    // Hard-edged rectangle -- no rounded pill, no corner radius (style guide section 6).
+    if (on)
     {
-        const float midAngle = (rotaryStartAngle + rotaryEndAngle) * 0.5f;
-        const float dotRadius = 2.5f;
-        const float dotDist = radius - trackWidth;
-        const float dotX = centreX + dotDist * std::sin(midAngle);
-        const float dotY = centreY - dotDist * std::cos(midAngle);
-        g.setColour(juce::Colour(KNOB_TRACK).brighter(0.3f));
-        g.fillEllipse(dotX - dotRadius, dotY - dotRadius, dotRadius * 2.0f, dotRadius * 2.0f);
+        g.setColour(colour::accent);
+        g.fillRect(bounds);
+        g.setColour(juce::Colours::black.withAlpha(0.35f));
+        g.fillRect(bounds.withTop(bounds.getBottom() - 2.0f));
     }
-
-    // Determine knob color — use per-slider override if set, otherwise fall back to ACCENT
-    const bool hasCustomColour = slider.isColourSpecified(juce::Slider::rotarySliderFillColourId);
-    const juce::Colour arcColour = hasCustomColour
-        ? slider.findColour(juce::Slider::rotarySliderFillColourId)
-        : juce::Colour(ACCENT);
-    const juce::Colour pointerColour = hasCustomColour
-        ? arcColour.brighter(0.3f)
-        : juce::Colour(ACCENT_BRIGHT);
-
-    // Value arc
-    if (sliderPos > 0.0f)
+    else
     {
-        juce::Path valueArc;
-        valueArc.addCentredArc(centreX, centreY, radius - trackWidth, radius - trackWidth,
-                               0.0f, rotaryStartAngle, angle, true);
-        g.setColour(arcColour);
-        g.strokePath(valueArc, juce::PathStrokeType(trackWidth, juce::PathStrokeType::curved,
-                                                     juce::PathStrokeType::rounded));
+        g.setGradientFill(zqsfx::ui::gradients::button(bounds, button.isEnabled()));
+        g.fillRect(bounds);
+        g.setColour(juce::Colours::white.withAlpha(button.isEnabled() ? 0.07f : 0.0f));
+        g.fillRect(bounds.withHeight(1.0f));
     }
+    g.setColour(colour::btnBorder);
+    g.drawRect(bounds, 1.0f);
 
-    // Pointer line
-    const float pointerLength = radius * 0.6f;
-    const float pointerThickness = 3.0f;
-    juce::Path pointer;
-    pointer.addRectangle(-pointerThickness * 0.5f, -pointerLength, pointerThickness, pointerLength);
-    pointer.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
-    g.setColour(pointerColour);
-    g.fillPath(pointer);
-
-    // Focus ring — keyboard accessibility indicator
-    if (slider.hasKeyboardFocus(true))
-    {
-        g.setColour(arcColour.withAlpha(0.4f));
-        g.drawEllipse(centreX - radius - 2.0f, centreY - radius - 2.0f,
-                      (radius + 2.0f) * 2.0f, (radius + 2.0f) * 2.0f, 1.5f);
-    }
+    const auto textColour = ! button.isEnabled() ? colour::silkCaption
+                           : on                   ? colour::accentInk
+                                                   : juce::Colour(TEXT_PRIMARY);
+    g.setColour(textColour);
+    g.setFont(silkFont(13.0f, true));
+    g.drawText(button.getButtonText(), button.getLocalBounds(), juce::Justification::centred);
 }
+
+// ---------------------------------------------------------------------- Linear sliders (ATK/HOLD/TAIL)
 
 void TransientLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
                                              float sliderPos, float /*minSliderPos*/, float /*maxSliderPos*/,
                                              juce::Slider::SliderStyle style, juce::Slider& slider)
 {
+    namespace colour = zqsfx::ui::colour;
+
     if (style != juce::Slider::LinearVertical)
     {
         LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, 0, 0, style, slider);
@@ -103,86 +65,51 @@ void TransientLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int
     const bool hasCustomColour = slider.isColourSpecified(juce::Slider::trackColourId);
     const juce::Colour fillColour = hasCustomColour
         ? slider.findColour(juce::Slider::trackColourId)
-        : juce::Colour(ACCENT);
+        : colour::accent;
 
-    const float trackWidth = 5.0f;
-    const float centreX = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
-    const float topY = static_cast<float>(y);
-    const float bottomY = static_cast<float>(y + height);
+    const float trackWidth = 6.0f;
+    const float centreX = (float) x + (float) width * 0.5f;
+    const float topY = (float) y;
+    const float bottomY = (float) (y + height);
+    const juce::Rectangle<float> track(centreX - trackWidth * 0.5f, topY, trackWidth, bottomY - topY);
 
-    // Track background
-    g.setColour(juce::Colour(KNOB_TRACK));
-    g.fillRoundedRectangle(centreX - trackWidth * 0.5f, topY, trackWidth, bottomY - topY, trackWidth * 0.5f);
+    // Screen-glass track, ruleTitle border -- hard rectangle, no rounded caps (style guide
+    // section 6).
+    g.setColour(colour::lcdScreenDark);
+    g.fillRect(track);
+    g.setColour(colour::ruleTitle);
+    g.drawRect(track, 1.0f);
 
-    // Track tick marks at 25%, 50%, 75%
-    g.setColour(juce::Colour(KNOB_TRACK).brighter(0.2f));
+    // Track tick marks at 25%, 50%, 75%.
+    g.setColour(colour::ruleTitle.brighter(0.5f));
     for (float pct : { 0.25f, 0.5f, 0.75f })
     {
         const float tickY = bottomY - pct * (bottomY - topY);
         g.drawLine(centreX - 8.0f, tickY, centreX + 8.0f, tickY, 0.5f);
     }
 
-    // Filled portion (from bottom up to thumb)
+    // Filled portion (from bottom up to thumb), in the control's own section channel colour.
     const float fillHeight = bottomY - sliderPos;
     if (fillHeight > 0.0f)
     {
         g.setColour(fillColour);
-        g.fillRoundedRectangle(centreX - trackWidth * 0.5f, sliderPos, trackWidth, fillHeight, trackWidth * 0.5f);
+        g.fillRect(juce::Rectangle<float>(centreX - trackWidth * 0.5f, sliderPos, trackWidth, fillHeight));
     }
 
-    // Thumb — wider with center groove
+    // Thumb -- hard-edged rectangle, no rounded corners.
     const float thumbWidth = 30.0f;
     const float thumbHeight = 12.0f;
     const float thumbX = centreX - thumbWidth * 0.5f;
     const float thumbY = sliderPos - thumbHeight * 0.5f;
+    const juce::Rectangle<float> thumb(thumbX, thumbY, thumbWidth, thumbHeight);
 
     g.setColour(fillColour.brighter(0.25f));
-    g.fillRoundedRectangle(thumbX, thumbY, thumbWidth, thumbHeight, 3.0f);
-
-    // Center groove line
-    g.setColour(fillColour.darker(0.2f));
+    g.fillRect(thumb);
+    g.setColour(colour::pointer);
     g.drawLine(thumbX + 6.0f, sliderPos, thumbX + thumbWidth - 6.0f, sliderPos, 1.0f);
+    g.setColour(colour::panelBorder);
+    g.drawRect(thumb, 1.0f);
 
-    // Subtle border
-    g.setColour(fillColour.withAlpha(0.3f));
-    g.drawRoundedRectangle(thumbX, thumbY, thumbWidth, thumbHeight, 3.0f, 0.5f);
-
-    // Focus ring
-    if (slider.hasKeyboardFocus(true))
-    {
-        g.setColour(fillColour.withAlpha(0.4f));
-        g.drawRoundedRectangle(thumbX - 2.0f, thumbY - 2.0f,
-                               thumbWidth + 4.0f, thumbHeight + 4.0f, 5.0f, 1.5f);
-    }
-}
-
-void TransientLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,
-                                             bool shouldDrawButtonAsHighlighted,
-                                             bool /*shouldDrawButtonAsDown*/)
-{
-    const auto bounds = button.getLocalBounds().toFloat().reduced(2.0f);
-    const float cornerSize = 4.0f;
-
-    if (button.getToggleState())
-    {
-        g.setColour(juce::Colour(ACCENT));
-        g.fillRoundedRectangle(bounds, cornerSize);
-    }
-    else
-    {
-        g.setColour(juce::Colour(KNOB_BG));
-        g.fillRoundedRectangle(bounds, cornerSize);
-        g.setColour(juce::Colour(KNOB_TRACK));
-        g.drawRoundedRectangle(bounds, cornerSize, 1.0f);
-    }
-
-    if (shouldDrawButtonAsHighlighted)
-    {
-        g.setColour(juce::Colour(TEXT_PRIMARY).withAlpha(0.1f));
-        g.fillRoundedRectangle(bounds, cornerSize);
-    }
-
-    g.setColour(button.getToggleState() ? juce::Colour(TEXT_PRIMARY) : juce::Colour(TEXT_DIM));
-    g.setFont(juce::FontOptions(13.0f));
-    g.drawText(button.getButtonText(), bounds, juce::Justification::centred);
+    // Focus ring comes from the house LookAndFeel (createFocusOutlineForComponent) -- no
+    // hand-drawn focus ring here any more (style guide section 8 / accessibility floor item 2).
 }

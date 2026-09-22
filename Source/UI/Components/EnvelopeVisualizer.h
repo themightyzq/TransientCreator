@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <zqsfx_ui/zqsfx_ui.h>
 #include "../../DSP/EnvelopeGenerator.h"
 #include "../../Parameters/ParameterLayout.h"
 #include "../../SharedState.h"
@@ -30,6 +31,12 @@ private:
     void loadShapeIntoBreakpoints(EnvelopeShape shape);
     void rebuildAndPush();
     void updateLayoutCache();
+
+    // Screen text via the house LCD glow font/treatment (drawLcdText/lcdFont) when the active
+    // LookAndFeel is the house one, falling back to a plain generic font otherwise -- mirrors
+    // LFlOw's LfoDisplay::drawScreenText helper (docs/ui_migration_report.md).
+    void drawScreenText(juce::Graphics& g, const juce::String& text, juce::Rectangle<float> area,
+                        float px, juce::Justification just, juce::Colour colourOverride) const;
 
     struct DecayCoord { float normX; float normY; bool inDecayRegion; };
     DecayCoord pixelToDecayCoord(juce::Point<float> pixel) const;

@@ -18,6 +18,16 @@ EnvelopeVisualizer::EnvelopeVisualizer(juce::AudioProcessorValueTreeState& apvts
     apvts.addParameterListener(ParamIDs::SHAPE, this);
     startTimerHz(REPAINT_HZ);
 
+    // Accessibility floor (style guide section 8): a custom component (not a stock JUCE
+    // control) needs its own setAccessible/title/description -- a screen reader has no useful
+    // name for a bare Component otherwise.
+    setTitle("Envelope shape editor");
+    setDescription("Interactive envelope curve display: the decay portion is editable -- click "
+                    "empty space to add a breakpoint, drag a point to move it, right-click a "
+                    "point to delete it, Alt-drag between points to bend the curve's tension. "
+                    "Double-click to reset to the selected shape preset.");
+    setAccessible(true);
+
     // Sync breakpoints to the current shape on initial construction
     const auto initialShape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
     loadShapeIntoBreakpoints(initialShape);
@@ -109,6 +119,19 @@ int EnvelopeVisualizer::findNearestBreakpoint(juce::Point<float> pixel, float ma
     return bestIdx;
 }
 
+void EnvelopeVisualizer::drawScreenText(juce::Graphics& g, const juce::String& text, juce::Rectangle<float> area,
+                                        float px, juce::Justification just, juce::Colour colourOverride) const
+{
+    if (auto* houseLnF = dynamic_cast<zqsfx::ui::LookAndFeel*>(&getLookAndFeel()))
+    {
+        houseLnF->drawLcdText(g, text, area.toNearestInt(), px, just, colourOverride);
+        return;
+    }
+    g.setColour(colourOverride);
+    g.setFont(juce::FontOptions(px));
+    g.drawText(text, area, just);
+}
+
 void EnvelopeVisualizer::paint(juce::Graphics& g)
 {
     updateLayoutCache();
@@ -116,8 +139,11 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float w = bounds.getWidth();
     const float h = bounds.getHeight();
 
-    g.setColour(juce::Colour(TransientLookAndFeel::BG_DARK));
-    g.fillRoundedRectangle(bounds, 4.0f);
+    namespace colour = zqsfx::ui::colour;
+
+    // Phosphor screen treatment (style guide section 6 / migration spec: custom displays get
+    // the house screen background), hard-edged -- no rounded corners.
+    zqsfx::ui::LookAndFeel::drawScreen(g, bounds, false);
 
     const auto shape = static_cast<EnvelopeShape>(static_cast<int>(shapeParam->load()));
     const float tailMs = tailLengthParam->load();
@@ -130,36 +156,77 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     const float tailWidth = w * cachedTailFraction;
     const float gapWidth  = w - tailWidth;
 
-    // Gap region
+    // Gap region -- darker screen well, distinct from the tail area by fill AND by the vertical
+    // separator + duration labels below (never colour alone).
     if (gapWidth > 0.0f)
     {
-        g.setColour(juce::Colour(TransientLookAndFeel::BG_PANEL));
-        g.fillRoundedRectangle(bounds.getX() + tailWidth, bounds.getY(), gapWidth, h, 0.0f);
+        g.setColour(colour::lcdScreenDark);
+        g.fillRect(bounds.getX() + tailWidth, bounds.getY(), gapWidth, h);
     }
 
-    // Editable decay region highlight
+    // Attack / hold / decay regions, each in the TIMING or SHAPE channel colour with a DISTINCT
+    // fill style so the three read apart without relying on colour alone (style guide section 3
+    // rule 2 / migration spec: "attack/sustain regions in the section channel colours with
+    // distinct fills -- solid vs hatched or outline").
+    if (cachedTailFraction > 0.0f)
     {
-        const float decayFrac = 1.0f - cachedDecayStart;
-        if (decayFrac > 0.0f && cachedTailFraction > 0.0f)
+        const float attackPixelEnd = bounds.getX() + juce::jlimit(0.0f, 1.0f, attackFraction) * cachedTailFraction * w;
+        const float holdPixelEnd   = bounds.getX() + juce::jlimit(0.0f, 1.0f, cachedDecayStart) * cachedTailFraction * w;
+        const float decayPixelEnd  = bounds.getX() + tailWidth;
+
+        // ATK: solid low-alpha TIMING fill.
+        if (attackPixelEnd > bounds.getX())
         {
-            const float decayPixelStart = bounds.getX() + cachedDecayStart * cachedTailFraction * w;
-            const float decayPixelEnd = bounds.getX() + tailWidth;
-            g.setColour(juce::Colour(TransientLookAndFeel::COLOR_SHAPE).withAlpha(0.04f));
-            g.fillRect(decayPixelStart, bounds.getY(), decayPixelEnd - decayPixelStart, h);
+            g.setColour(juce::Colour(TransientLookAndFeel::COLOR_TIMING).withAlpha(0.10f));
+            g.fillRect(bounds.getX(), bounds.getY(), attackPixelEnd - bounds.getX(), h);
         }
+
+        // HOLD: same TIMING hue, but a diagonal hatch instead of a solid fill -- distinguishes it
+        // from ATK's solid fill without changing colour.
+        if (holdPixelEnd > attackPixelEnd)
+        {
+            juce::Graphics::ScopedSaveState save(g);
+            g.reduceClipRegion(juce::Rectangle<float>(attackPixelEnd, bounds.getY(),
+                                                        holdPixelEnd - attackPixelEnd, h).toNearestInt());
+            g.setColour(juce::Colour(TransientLookAndFeel::COLOR_TIMING).withAlpha(0.35f));
+            const float step = 6.0f;
+            for (float lx = attackPixelEnd - h; lx < holdPixelEnd + h; lx += step)
+                g.drawLine(lx, bounds.getBottom(), lx + h, bounds.getY(), 1.0f);
+        }
+
+        // DECAY (the editable region): solid low-alpha SHAPE fill -- already a distinct hue from
+        // ATK/HOLD's TIMING tint, so this stays a plain fill.
+        if (decayPixelEnd > holdPixelEnd)
+        {
+            g.setColour(juce::Colour(TransientLookAndFeel::COLOR_SHAPE).withAlpha(0.10f));
+            g.fillRect(holdPixelEnd, bounds.getY(), decayPixelEnd - holdPixelEnd, h);
+        }
+
+        // Small ASCII captions naming each region -- the non-colour cue that makes the fill
+        // styles legible as "ATK"/"HOLD"/"DECAY" rather than just three different textures.
+        // Placed just below the shape-name/rate row (top), clear of the duration labels and the
+        // hover-only instruction hint (both bottom-anchored).
+        const float capY = bounds.getY() + 17.0f;
+        if (attackPixelEnd - bounds.getX() > 20.0f)
+            drawScreenText(g, "ATK", { bounds.getX() + 2.0f, capY, attackPixelEnd - bounds.getX() - 2.0f, 10.0f },
+                           8.0f, juce::Justification::centredLeft, colour::lcdFaint2);
+        if (holdPixelEnd - attackPixelEnd > 20.0f)
+            drawScreenText(g, "HOLD", { attackPixelEnd + 2.0f, capY, holdPixelEnd - attackPixelEnd - 2.0f, 10.0f },
+                           8.0f, juce::Justification::centred, colour::lcdFaint2);
+        if (decayPixelEnd - holdPixelEnd > 24.0f)
+            drawScreenText(g, "DECAY", { holdPixelEnd + 2.0f, capY, decayPixelEnd - holdPixelEnd - 2.0f, 10.0f },
+                           8.0f, juce::Justification::centredLeft, colour::lcdFaint2);
     }
 
-    // Separator
-    g.setColour(juce::Colour(TransientLookAndFeel::KNOB_TRACK));
+    // Separator between tail and gap.
+    g.setColour(colour::ruleTitle);
     g.drawVerticalLine(static_cast<int>(bounds.getX() + tailWidth), bounds.getY(), bounds.getBottom());
 
     // Shape name + edited indicator
-    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.5f));
-    g.setFont(juce::FontOptions(10.0f));
     juce::String shapeName = shapeChoices[static_cast<int>(shape)];
     if (curveIsModified) shapeName += " (edited)";
-    g.drawText(shapeName, juce::Rectangle<float>(bounds.getX() + 6.0f, bounds.getY() + 4.0f, 150.0f, 12.0f),
-               juce::Justification::centredLeft);
+    drawScreenText(g, shapeName, { bounds.getX() + 6.0f, bounds.getY() + 3.0f, 150.0f, 13.0f },
+                   12.0f, juce::Justification::centredLeft, colour::lcdDim);
 
     // Rate display
     if (totalMs > 0.0f)
@@ -167,11 +234,9 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
         const float rateHz = 1000.0f / totalMs;
         juce::String rateStr = juce::String(totalMs, 0) + " ms";
         if (rateHz >= 0.1f && rateHz < 100.0f)
-            rateStr += "  |  " + juce::String(rateHz, 1) + " Hz";
-        g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.4f));
-        g.setFont(juce::FontOptions(9.0f));
-        g.drawText(rateStr, juce::Rectangle<float>(bounds.getRight() - 160.0f, bounds.getY() + 4.0f, 154.0f, 12.0f),
-                   juce::Justification::centredRight);
+            rateStr += "  " + juce::String(rateHz, 1) + " Hz";
+        drawScreenText(g, rateStr, { bounds.getRight() - 160.0f, bounds.getY() + 3.0f, 154.0f, 13.0f },
+                       12.0f, juce::Justification::centredRight, colour::lcdFaint);
     }
 
     // Build envelope path from LUT
@@ -194,14 +259,18 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
         else envelopePath.lineTo(px, py);
     }
 
-    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
+    // The traced envelope curve itself: house lcdText phosphor-green (migration spec: "its
+    // envelope curve in lcdText"). Breakpoints/hover/tension/playhead below stay in the SHAPE
+    // channel colour -- they are the user-editable AFFORDANCES on top of the curve, not the
+    // trace, so a second, deliberately distinct hue marks them as interactive.
+    g.setColour(colour::lcdText);
     g.strokePath(envelopePath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     juce::Path fillPath(envelopePath);
     fillPath.lineTo(bounds.getRight(), bounds.getBottom());
     fillPath.lineTo(bounds.getX(), bounds.getBottom());
     fillPath.closeSubPath();
-    g.setColour(juce::Colour(TransientLookAndFeel::COLOR_SHAPE).withAlpha(0.15f));
+    g.setColour(colour::lcdText.withAlpha(0.15f));
     g.fillPath(fillPath);
 
     // Playhead
@@ -236,7 +305,6 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     // Tension indicators — only when mouse is hovering in the editor
     if (mouseInside)
     {
-        g.setFont(juce::FontOptions(8.0f));
         for (int i = 0; i < static_cast<int>(bps.size()) - 1; ++i)
         {
             const float tension = bps[static_cast<size_t>(i)].tension;
@@ -244,10 +312,9 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
             const float midX = (bps[static_cast<size_t>(i)].x + bps[static_cast<size_t>(i + 1)].x) * 0.5f;
             const float midY = (bps[static_cast<size_t>(i)].y + bps[static_cast<size_t>(i + 1)].y) * 0.5f;
             const auto midPx = decayCoordToPixel(midX, midY);
-            g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.5f));
             juce::String tensionStr = (tension > 0.0f ? "+" : "") + juce::String(tension, 1);
-            g.drawText(tensionStr, juce::Rectangle<float>(midPx.x - 14.0f, midPx.y - 16.0f, 28.0f, 12.0f),
-                       juce::Justification::centred);
+            drawScreenText(g, tensionStr, { midPx.x - 14.0f, midPx.y - 16.0f, 28.0f, 12.0f },
+                           10.0f, juce::Justification::centred, colour::lcdFaint.withAlpha(0.8f));
         }
     }
 
@@ -263,11 +330,8 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
             g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.15f));
             g.drawVerticalLine(static_cast<int>(hoverPixel.x), bounds.getY(), bounds.getBottom());
             g.drawHorizontalLine(static_cast<int>(hoverPixel.y), bounds.getX(), bounds.getX() + tailWidth);
-            g.setColour(juce::Colour(TransientLookAndFeel::TEXT_PRIMARY).withAlpha(0.6f));
-            g.setFont(juce::FontOptions(9.0f));
-            g.drawText(juce::String(coord.normY, 2),
-                       juce::Rectangle<float>(hoverPixel.x + 10.0f, hoverPixel.y - 14.0f, 36.0f, 12.0f),
-                       juce::Justification::centredLeft);
+            drawScreenText(g, juce::String(coord.normY, 2), { hoverPixel.x + 10.0f, hoverPixel.y - 14.0f, 36.0f, 12.0f },
+                           10.0f, juce::Justification::centredLeft, colour::lcdText.withAlpha(0.8f));
         }
     }
 
@@ -275,34 +339,27 @@ void EnvelopeVisualizer::paint(juce::Graphics& g)
     {
         const auto& bp = bps[static_cast<size_t>(hoveredIndex)];
         const auto ptPx = decayCoordToPixel(bp.x, bp.y);
-        g.setColour(juce::Colour(TransientLookAndFeel::TEXT_PRIMARY).withAlpha(0.7f));
-        g.setFont(juce::FontOptions(9.0f));
-        g.drawText(juce::String(bp.y, 2),
-                   juce::Rectangle<float>(ptPx.x + 10.0f, ptPx.y - 14.0f, 36.0f, 12.0f),
-                   juce::Justification::centredLeft);
+        drawScreenText(g, juce::String(bp.y, 2), { ptPx.x + 10.0f, ptPx.y - 14.0f, 36.0f, 12.0f },
+                       10.0f, juce::Justification::centredLeft, colour::lcdText.withAlpha(0.9f));
     }
 
-    // Instruction hint
+    // Instruction hint (ASCII-only; "|" and "+" are plain ASCII already)
     if (mouseInside && dragIndex < 0 && tensionDragSegment < 0)
     {
-        g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.25f));
-        g.setFont(juce::FontOptions(9.0f));
-        g.drawText("Click: add point  |  Right-click: delete  |  Alt+drag: bend curve",
-                   juce::Rectangle<float>(bounds.getX(), bounds.getBottom() - 28.0f, tailWidth, 12.0f),
-                   juce::Justification::centred);
+        drawScreenText(g, "Click: add point  |  Right-click: delete  |  Alt+drag: bend curve",
+                       { bounds.getX(), bounds.getBottom() - 28.0f, tailWidth, 12.0f },
+                       9.0f, juce::Justification::centred, colour::lcdFaint2.withAlpha(0.8f));
     }
 
     // Duration labels
-    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM));
-    g.setFont(juce::FontOptions(11.0f));
     if (tailWidth > 40.0f)
-        g.drawText(juce::String(tailMs, 1) + " ms",
-                   juce::Rectangle<float>(bounds.getX(), bounds.getBottom() - 16.0f, tailWidth, 14.0f),
-                   juce::Justification::centred);
+        drawScreenText(g, juce::String(tailMs, 1) + " ms",
+                       { bounds.getX(), bounds.getBottom() - 16.0f, tailWidth, 14.0f },
+                       11.0f, juce::Justification::centred, colour::lcdDim);
     if (gapWidth > 40.0f)
-        g.drawText(juce::String(gapMs, 1) + " ms",
-                   juce::Rectangle<float>(bounds.getX() + tailWidth, bounds.getBottom() - 16.0f, gapWidth, 14.0f),
-                   juce::Justification::centred);
+        drawScreenText(g, juce::String(gapMs, 1) + " ms",
+                       { bounds.getX() + tailWidth, bounds.getBottom() - 16.0f, gapWidth, 14.0f },
+                       11.0f, juce::Justification::centred, colour::lcdDim);
 }
 
 void EnvelopeVisualizer::resized() { updateLayoutCache(); }

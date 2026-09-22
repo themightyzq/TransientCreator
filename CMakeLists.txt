@@ -13,6 +13,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Add JUCE as subdirectory (git submodule)
 add_subdirectory(JUCE)
 
+# The ZQ SFX house UI (tokens, LookAndFeel, bound controls, embedded OFL fonts). Must come
+# AFTER JUCE. Pinned by tag: bump deliberately, then re-run transient_ui_snapshot and compare.
+include(FetchContent)
+FetchContent_Declare(zqsfx_ui
+    GIT_REPOSITORY https://github.com/themightyzq/zqsfx_ui.git
+    GIT_TAG v0.2.1
+    GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(zqsfx_ui)
+
 # Plugin format selection
 set(PLUGIN_FORMATS VST3 Standalone)
 
@@ -90,10 +99,32 @@ target_link_libraries(TransientCreator
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        zqsfx::zqsfx_ui
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
+)
+
+# ---- UI snapshot tool (headless before/after render gate for the zqsfx_ui house-UI migration)
+# pamplejuce pattern: link against the plugin's own shared-code target ("TransientCreator",
+# produced by juce_add_plugin above) instead of recompiling PluginProcessor.cpp/PluginEditor.cpp
+# a second time. juce_generate_juce_header(TransientCreator)'s generated JuceHeader.h is only
+# added to TransientCreator's OWN include path as PRIVATE, so it does not propagate through
+# target_link_libraries; it is added back explicitly below via JUCE_GENERATED_SOURCES_DIRECTORY.
+juce_add_console_app(transient_ui_snapshot PRODUCT_NAME "transient_ui_snapshot")
+target_sources(transient_ui_snapshot PRIVATE tools/ui_snapshot/main.cpp)
+target_include_directories(transient_ui_snapshot
+    PRIVATE
+        Source
+        $<TARGET_PROPERTY:TransientCreator,JUCE_GENERATED_SOURCES_DIRECTORY>
+)
+target_link_libraries(transient_ui_snapshot
+    PRIVATE
+        TransientCreator
+        juce::juce_audio_utils
+        juce::juce_dsp
+        zqsfx::zqsfx_ui
 )
 
 # === Unit tests (JUCE UnitTest framework, no external dependency) ===
