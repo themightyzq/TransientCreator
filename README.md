@@ -47,6 +47,11 @@ both into your user plug-in folders automatically after building.
 
 ## Quick Start
 
+The preset bar in the header (top left) loads any of 5 factory presets or your own saved
+presets. Save writes the current settings to
+`~/Library/Audio/Presets/ZQ SFX/Transient Creator/` as a `.tcpreset` file, and the `...`
+menu renames, deletes, or reveals that folder.
+
 1. Insert Transient Creator on a track, or use Standalone mode.
 2. Choose an input: External Audio processes your track; White Noise, Pink Noise, or
    Sine generate sound internally.

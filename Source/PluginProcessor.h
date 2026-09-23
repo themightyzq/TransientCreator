@@ -4,6 +4,7 @@
 #include "Parameters/ParameterLayout.h"
 #include "DSP/TransientEngine.h"
 #include "SharedState.h"
+#include "Presets/PresetManager.h"
 
 class TransientCreatorProcessor : public juce::AudioProcessor
 {
@@ -46,7 +47,23 @@ public:
     // Audio-thread custom curve LUT (copied from staging at block boundary)
     std::array<float, SharedUIState::CUSTOM_CURVE_SIZE> customCurveLUT {};
 
+    // Preset browsing (factory + user); constructed after apvts so its rescan() and any
+    // later access to the processor's APVTS are always valid. Message-thread only.
+    tc::PresetManager presetManager { *this };
+
+    // Editor size persistence -- message-thread only (the editor is UI, never the audio
+    // thread). 0 means "no saved size yet"; the editor applies its own 700x550 default in
+    // that case. Written from PluginEditor::resized(), read from its constructor and from
+    // getStateInformation().
+    int getEditorWidth() const noexcept { return editorWidth.load(); }
+    int getEditorHeight() const noexcept { return editorHeight.load(); }
+    void setEditorWidth(int w) noexcept { editorWidth.store(w); }
+    void setEditorHeight(int h) noexcept { editorHeight.store(h); }
+
 private:
+    std::atomic<int> editorWidth { 0 };
+    std::atomic<int> editorHeight { 0 };
+
     // Caches raw parameter pointers for audio-thread-safe reads
     std::atomic<float>* tailLengthParam      = nullptr;
     std::atomic<float>* silenceGapParam      = nullptr;

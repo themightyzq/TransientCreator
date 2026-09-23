@@ -19,7 +19,7 @@ add_subdirectory(JUCE)
 include(FetchContent)
 FetchContent_Declare(zqsfx_ui
     GIT_REPOSITORY https://github.com/themightyzq/zqsfx_ui.git
-    GIT_TAG v0.2.1
+    GIT_TAG v0.4.0
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(zqsfx_ui)
 
@@ -63,6 +63,12 @@ juce_add_plugin(TransientCreator
 
 juce_generate_juce_header(TransientCreator)
 
+# Factory presets (Docs/PRESETS.md), embedded so they travel inside the VST3/AU bundle.
+# Each file is the XML of apvts.copyState() with a "presetName" attribute -- see
+# Source/Presets/PresetManager.{h,cpp}.
+file(GLOB TRANSIENTCREATOR_PRESET_FILES "${CMAKE_CURRENT_SOURCE_DIR}/Presets/*.tcpreset")
+juce_add_binary_data(TransientCreatorPresets SOURCES ${TRANSIENTCREATOR_PRESET_FILES})
+
 target_sources(TransientCreator
     PRIVATE
         Source/PluginProcessor.cpp
@@ -75,6 +81,7 @@ target_sources(TransientCreator
         Source/UI/Components/EnvelopeVisualizer.cpp
         Source/UI/Components/TransientControls.cpp
         Source/UI/Panels/MainPanel.cpp
+        Source/Presets/PresetManager.cpp
 )
 
 target_include_directories(TransientCreator
@@ -102,6 +109,7 @@ target_link_libraries(TransientCreator
         juce::juce_audio_utils
         juce::juce_dsp
         zqsfx::zqsfx_ui
+        TransientCreatorPresets
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -124,10 +132,35 @@ target_include_directories(transient_ui_snapshot
 target_link_libraries(transient_ui_snapshot
     PRIVATE
         TransientCreator
+        TransientCreatorPresets
         juce::juce_audio_utils
         juce::juce_dsp
         zqsfx::zqsfx_ui
 )
+
+# ---- Preset regression console app: constructs the real processor, loads every factory
+# preset via PresetManager and asserts it differs from Init, then round-trips a user
+# preset's name (saved to a temp dir, not the real user preset folder) through
+# getStateInformation()/setStateInformation(). Same link-against-TransientCreator pattern as
+# transient_ui_snapshot above -- guarded the same way as Tests/ below, since the source lives
+# in Diversion, not the git mirror.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PresetManagerTests.cpp")
+    juce_add_console_app(transient_preset_tests PRODUCT_NAME "transient_preset_tests")
+    target_sources(transient_preset_tests PRIVATE Tests/PresetManagerTests.cpp)
+    target_include_directories(transient_preset_tests
+        PRIVATE
+            Source
+            $<TARGET_PROPERTY:TransientCreator,JUCE_GENERATED_SOURCES_DIRECTORY>
+    )
+    target_link_libraries(transient_preset_tests
+        PRIVATE
+            TransientCreator
+            TransientCreatorPresets
+            juce::juce_audio_utils
+            juce::juce_dsp
+            zqsfx::zqsfx_ui
+    )
+endif()
 
 # === Unit tests (JUCE UnitTest framework, no external dependency) ===
 # Tests/ lives in the authoritative VCS (Diversion), not the minimal git mirror,
@@ -136,4 +169,7 @@ option(TRANSIENTCREATOR_BUILD_TESTS "Build the DSP unit-test runner" ON)
 if(TRANSIENTCREATOR_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/CMakeLists.txt")
     enable_testing()
     add_subdirectory(Tests)
+    if(TARGET transient_preset_tests)
+        add_test(NAME TransientCreatorPresetTests COMMAND transient_preset_tests)
+    endif()
 endif()

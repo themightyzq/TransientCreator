@@ -8,11 +8,13 @@
 #include "../LookAndFeel/TransientLookAndFeel.h"
 #include "../../SharedState.h"
 #include "../../Parameters/ParameterLayout.h"
+#include "../../Presets/PresetManager.h"
 
 class MainPanel : public juce::Component
 {
 public:
-    MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& sharedState);
+    MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& sharedState,
+              tc::PresetManager& presetManager);
     ~MainPanel() override;
 
     void paint(juce::Graphics& g) override;
@@ -21,7 +23,16 @@ public:
 private:
     void showAboutBox();
 
+    // Preset bar (header, left of the wordmark): [<] [name] [>] [Save] [...]
+    void refreshPresetCombo();
+    void showPresetMenu();
+    void doSavePreset();
+    void doRenamePreset();
+    void doDeletePreset();
+    void revealPresetFolder();
+
     juce::AudioProcessorValueTreeState& apvtsRef;
+    tc::PresetManager& presetManagerRef;
     // The LookAndFeel itself now lives on the editor (TransientCreatorEditor::lookAndFeel) so
     // it also covers the TooltipWindow and the LogoMark's About-box AlertWindow -- see
     // PluginEditor.h for the rationale.
@@ -39,4 +50,12 @@ private:
     juce::Label shapeBarLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> shapeAttachment;
     std::atomic<float>* shapeParam = nullptr;
+
+    // Preset bar
+    juce::ComboBox presetCombo;
+    juce::TextButton presetPrevButton { "<" };
+    juce::TextButton presetNextButton { ">" };
+    juce::TextButton presetSaveButton { "Save" };
+    juce::TextButton presetMenuButton { "..." };
+    bool updatingPresetCombo = false;
 };

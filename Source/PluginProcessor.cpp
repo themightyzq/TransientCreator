@@ -206,6 +206,10 @@ void TransientCreatorProcessor::getStateInformation(juce::MemoryBlock& destData)
     juce::MemoryBlock curveData(customCurveLUT.data(), customCurveLUT.size() * sizeof(float));
     state.setProperty("customCurve", curveData.toBase64Encoding(), nullptr);
 
+    // Editor window size (plain ValueTree properties, never parameters -- 0 means "not set").
+    state.setProperty("editor_width", editorWidth.load(), nullptr);
+    state.setProperty("editor_height", editorHeight.load(), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -274,9 +278,19 @@ void TransientCreatorProcessor::setStateInformation(const void* data, int sizeIn
             }
         }
 
+        // Restore editor window size (0 = not set / use the editor's default).
+        editorWidth.store(static_cast<int>(state.getProperty("editor_width", 0)));
+        editorHeight.store(static_cast<int>(state.getProperty("editor_height", 0)));
+
         state.removeProperty("breakpoints", nullptr);
         state.removeProperty("customCurve", nullptr);
+        state.removeProperty("editor_width", nullptr);
+        state.removeProperty("editor_height", nullptr);
         apvts.replaceState(state);
+
+        // The restored state carries its own "presetName" property (set by PresetManager on
+        // every load/save); resync so the preset bar shows the right entry selected.
+        presetManager.syncCurrentIndexFromState();
     }
 }
 

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<PARAMETERS presetName="Sharp Click">
+  <PARAM id="tailLength" value="15.0"/>
+  <PARAM id="silenceGap" value="200.0"/>
+  <PARAM id="transientShape" value="0.0"/>
+  <PARAM id="mix" value="100.0"/>
+  <PARAM id="syncEnabled" value="0.0"/>
+  <PARAM id="syncNote" value="2.0"/>
+  <PARAM id="inputMode" value="0.0"/>
+  <PARAM id="outputGain" value="0.0"/>
+  <PARAM id="limiterOn" value="1.0"/>
+  <PARAM id="attackTime" value="0.1"/>
+  <PARAM id="transientGain" value="6.0"/>
+  <PARAM id="pitchStart" value="0.0"/>
+  <PARAM id="pitchEnd" value="0.0"/>
+  <PARAM id="sineFrequency" value="440.0"/>
+  <PARAM id="humanize" value="0.0"/>
+  <PARAM id="sustainHold" value="0.0"/>
+</PARAMETERS>

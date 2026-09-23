@@ -1,7 +1,9 @@
 #include "MainPanel.h"
 
-MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& sharedState)
+MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& sharedState,
+                      tc::PresetManager& presetManager)
     : apvtsRef(apvts),
+      presetManagerRef(presetManager),
       envelopeVisualizer(apvts, sharedState),
       transientControls(apvts)
 {
@@ -62,9 +64,174 @@ MainPanel::MainPanel(juce::AudioProcessorValueTreeState& apvts, SharedUIState& s
 
     shapeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         apvts, ParamIDs::SHAPE, shapeSelector);
+
+    // --- Preset bar (header, left of the wordmark): [<] [name] [>] [Save] [...] ---
+    presetCombo.setTooltip("Select a preset");
+    presetCombo.setTitle("Preset");
+    presetCombo.setDescription(presetCombo.getTooltip());
+    presetCombo.onChange = [this]
+    {
+        if (updatingPresetCombo)
+            return;
+        juce::String err;
+        if (!presetManagerRef.load(presetCombo.getSelectedId() - 1, err))
+            juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Load Preset", err);
+        refreshPresetCombo();
+    };
+    addAndMakeVisible(presetCombo);
+
+    presetPrevButton.setTooltip("Previous preset");
+    presetPrevButton.setTitle("Previous preset");
+    presetPrevButton.setDescription(presetPrevButton.getTooltip());
+    presetPrevButton.onClick = [this]
+    {
+        juce::String err;
+        presetManagerRef.step(-1, err);
+        refreshPresetCombo();
+    };
+    addAndMakeVisible(presetPrevButton);
+
+    presetNextButton.setTooltip("Next preset");
+    presetNextButton.setTitle("Next preset");
+    presetNextButton.setDescription(presetNextButton.getTooltip());
+    presetNextButton.onClick = [this]
+    {
+        juce::String err;
+        presetManagerRef.step(1, err);
+        refreshPresetCombo();
+    };
+    addAndMakeVisible(presetNextButton);
+
+    presetSaveButton.setTooltip("Save the current settings as a new preset");
+    presetSaveButton.setTitle("Save preset");
+    presetSaveButton.setDescription(presetSaveButton.getTooltip());
+    presetSaveButton.onClick = [this] { doSavePreset(); };
+    addAndMakeVisible(presetSaveButton);
+
+    presetMenuButton.setTooltip("Rename, delete, or reveal the preset folder");
+    presetMenuButton.setTitle("Preset options");
+    presetMenuButton.setDescription(presetMenuButton.getTooltip());
+    presetMenuButton.onClick = [this] { showPresetMenu(); };
+    addAndMakeVisible(presetMenuButton);
+
+    refreshPresetCombo();
 }
 
 MainPanel::~MainPanel() = default;
+
+void MainPanel::refreshPresetCombo()
+{
+    updatingPresetCombo = true;
+
+    presetCombo.clear(juce::dontSendNotification);
+    const auto& entries = presetManagerRef.getEntries();
+    for (int i = 0; i < static_cast<int>(entries.size()); ++i)
+        presetCombo.addItem(entries[static_cast<size_t>(i)].name, i + 1);
+
+    const int current = presetManagerRef.getCurrentIndex();
+    presetCombo.setSelectedId(current >= 0 ? current + 1 : 0, juce::dontSendNotification);
+
+    updatingPresetCombo = false;
+}
+
+void MainPanel::showPresetMenu()
+{
+    const auto& entries = presetManagerRef.getEntries();
+    const int current = presetManagerRef.getCurrentIndex();
+    const bool isUserPreset = current >= 0 && current < static_cast<int>(entries.size())
+                                   && entries[static_cast<size_t>(current)].isUser;
+
+    juce::PopupMenu menu;
+    menu.addItem(1, "Rename...", isUserPreset);
+    menu.addItem(2, "Delete...", isUserPreset);
+    menu.addSeparator();
+    menu.addItem(3, "Reveal Preset Folder");
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(presetMenuButton),
+        [this](int result)
+        {
+            if (result == 1)      doRenamePreset();
+            else if (result == 2) doDeletePreset();
+            else if (result == 3) revealPresetFolder();
+        });
+}
+
+void MainPanel::doSavePreset()
+{
+    auto* aw = new juce::AlertWindow("Save Preset", "Name this preset:",
+                                      juce::MessageBoxIconType::NoIcon);
+    aw->addTextEditor("name", presetManagerRef.getCurrentName(), "Name:");
+    aw->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    aw->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, aw](int result)
+        {
+            if (result == 1)
+            {
+                const auto name = aw->getTextEditorContents("name");
+                juce::String err;
+                if (!presetManagerRef.saveUser(name, err))
+                    juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Save Preset", err);
+                refreshPresetCombo();
+            }
+        }), true);
+}
+
+void MainPanel::doRenamePreset()
+{
+    const int current = presetManagerRef.getCurrentIndex();
+    if (current < 0)
+        return;
+
+    auto* aw = new juce::AlertWindow("Rename Preset", "New name:",
+                                      juce::MessageBoxIconType::NoIcon);
+    aw->addTextEditor("name", presetManagerRef.getCurrentName(), "Name:");
+    aw->addButton("Rename", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    aw->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, aw, current](int result)
+        {
+            if (result == 1)
+            {
+                const auto name = aw->getTextEditorContents("name");
+                juce::String err;
+                if (!presetManagerRef.renameUser(current, name, err))
+                    juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Rename Preset", err);
+                refreshPresetCombo();
+            }
+        }), true);
+}
+
+void MainPanel::doDeletePreset()
+{
+    const int current = presetManagerRef.getCurrentIndex();
+    if (current < 0)
+        return;
+
+    const auto name = presetManagerRef.getCurrentName();
+    juce::AlertWindow::showOkCancelBox(juce::MessageBoxIconType::WarningIcon, "Delete Preset",
+        "Delete \"" + name + "\"? This moves the file to the Trash.",
+        "Delete", "Cancel", this,
+        juce::ModalCallbackFunction::create(
+            [this, current](int result)
+            {
+                if (result == 1)
+                {
+                    juce::String err;
+                    if (!presetManagerRef.deleteUser(current, err))
+                        juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Delete Preset", err);
+                    refreshPresetCombo();
+                }
+            }));
+}
+
+void MainPanel::revealPresetFolder()
+{
+    auto dir = presetManagerRef.getUserDirectory();
+    if (!dir.isDirectory())
+        dir.createDirectory();
+    dir.revealToUser();
+}
 
 void MainPanel::showAboutBox()
 {
@@ -118,6 +285,31 @@ void MainPanel::resized()
     // painted text (paint()) is centred across the whole header and has ample room to spare even
     // at the 600 px minimum width.
     logo.setBounds(header.reduced(12, 0).removeFromRight(28).withSizeKeepingCentre(28, 28));
+
+    // Preset bar: free space at the left of the header, left of the centered wordmark.
+    // Kept compact (22px controls, house accessibility floor) so it clears the wordmark
+    // even at the 600px minimum editor width.
+    {
+        constexpr int barH = 22;
+        constexpr int navW = 22;
+        constexpr int comboW = 88;
+        constexpr int saveW = 40;
+        constexpr int menuW = 22;
+        constexpr int gap = 3;
+        constexpr int totalW = navW + gap + comboW + gap + navW + gap + saveW + gap + menuW;
+
+        auto bar = header.reduced(12, 0).removeFromLeft(totalW).withSizeKeepingCentre(totalW, barH);
+
+        presetPrevButton.setBounds(bar.removeFromLeft(navW));
+        bar.removeFromLeft(gap);
+        presetCombo.setBounds(bar.removeFromLeft(comboW));
+        bar.removeFromLeft(gap);
+        presetNextButton.setBounds(bar.removeFromLeft(navW));
+        bar.removeFromLeft(gap);
+        presetSaveButton.setBounds(bar.removeFromLeft(saveW));
+        bar.removeFromLeft(gap);
+        presetMenuButton.setBounds(bar.removeFromLeft(menuW));
+    }
 
     bounds.removeFromBottom(16);
     auto content = bounds.reduced(8, 4);
