@@ -36,3 +36,6 @@ Docs/
 .dvignore
 
 # JUCE is tracked as a git submodule — do not ignore
+
+# CMake build trees other than build/ (review, universal, ui gates). Never committed.
+build-*/

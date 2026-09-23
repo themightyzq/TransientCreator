@@ -23,7 +23,7 @@ FetchContent_Declare(zqsfx_ui
 FetchContent_MakeAvailable(zqsfx_ui)
 
 # Plugin format selection
-set(PLUGIN_FORMATS VST3 Standalone)
+set(PLUGIN_FORMATS VST3 AU Standalone)
 
 juce_add_plugin(TransientCreator
     # === COMPANY INFO ===
@@ -57,6 +57,7 @@ juce_add_plugin(TransientCreator
 
     # === VST3 CATEGORIES ===
     VST3_CATEGORIES "Fx" "Dynamics" "Tools"
+    AU_MAIN_TYPE "kAudioUnitType_Effect"
 )
 
 juce_generate_juce_header(TransientCreator)
