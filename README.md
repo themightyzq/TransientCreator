@@ -28,6 +28,8 @@ plugin folder:
 Restart your DAW. The plugin appears as Transient Creator under Effects > Dynamics >
 Tools.
 
+Requires macOS 11.0 or later.
+
 ### Building from source
 
 Requirements: CMake 3.22+, a C++17 compiler, platform SDK (Xcode CLI, Visual Studio, or
