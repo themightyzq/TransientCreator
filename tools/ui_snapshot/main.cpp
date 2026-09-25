@@ -5,19 +5,17 @@
 //                                                              size, 700x550 -- pass 600 520 to
 //                                                              check the minimum resize floor)
 //
-// UI regression gate for the ZQ SFX house-UI migration (see ../../docs/ZQSFX_UI_STYLE_GUIDE.md
-// and docs/ui_migration_report.md). Mirrors Project_Lfl0w's tools/ui_snapshot/main.cpp: links
-// against Transient Creator's own shared-code CMake target (the "pamplejuce pattern") instead of
-// recompiling PluginProcessor.cpp/PluginEditor.cpp a second time -- see CMakeLists.txt for the
-// target wiring.
+// UI regression gate for the ZQ SFX house UI style (zqsfx_ui module). Mirrors the sibling
+// products' own ui_snapshot tools: links against Transient Creator's own shared-code CMake
+// target (the "pamplejuce pattern") instead of recompiling PluginProcessor.cpp/PluginEditor.cpp
+// a second time -- see CMakeLists.txt for the target wiring.
 //
 // Determinism: nothing here ever pumps JUCE's message loop (no runDispatchLoop), so
 // TransientControls's 15 Hz juce::Timer and EnvelopeVisualizer's 30 Hz juce::Timer -- either of
 // which could make the render depend on wall-clock timing -- never actually fire; JUCE dispatches
 // timer callbacks through the message queue, not directly from a background timer thread. The
 // snapshot is taken immediately after construction/resize, before any timer tick, which is what
-// makes two successive renders of unchanged code byte-identical (verified in
-// docs/ui_migration_report.md).
+// makes two successive renders of unchanged code byte-identical.
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"

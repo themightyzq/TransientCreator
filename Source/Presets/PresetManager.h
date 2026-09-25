@@ -2,9 +2,9 @@
 // Preset browsing for Transient Creator. Factory presets are compiled into the binary
 // (BinaryData, generated from Presets/*.tcpreset -- see CMakeLists.txt) so they travel
 // inside the VST3/AU bundle; user presets are the same XML format written to
-// ~/Library/Audio/Presets/ZQ SFX/Transient Creator/. Modelled on Broken's PresetManager
-// (Project_TurboSynth/plugin/src/plugin/PresetManager.h), adapted for APVTS XML state
-// instead of a hand-rolled JSON snapshot.
+// ~/Library/Audio/Presets/ZQ SFX/Transient Creator/. Modelled on the sibling Broken
+// plugin's PresetManager, adapted for APVTS XML state instead of a hand-rolled JSON
+// snapshot.
 //
 // A .tcpreset file is exactly the XML produced by apvts.copyState() (i.e. what
 // getStateInformation() would write, minus the session-only breakpoint/curve/editor-size

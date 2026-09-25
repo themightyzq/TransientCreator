@@ -3,11 +3,11 @@
 Transient Creator generates new, sharply shaped transient hits synced to a rhythm, from
 incoming audio or its own noise and sine generators. It is a transient creator, not a
 transient shaper: it builds new transient events with a looping envelope engine and a
-fully interactive, hand-drawable curve editor, with a pitch sweep across each hit.
-VST3, AU, and Standalone on macOS; VST3 and Standalone on Windows and Linux. Built with
-JUCE.
+fully interactive, hand-drawable curve editor, with a pitch sweep across each hit. For
+sound designers and producers shaping drums and percussive material. VST3, AU, and
+Standalone on macOS; VST3 and Standalone on Windows and Linux. Built with JUCE.
 
-## Installation
+## Install
 
 Download the latest build for your platform from the
 [Releases page](https://github.com/themightyzq/TransientCreator/releases/tag/v1.0.0)
@@ -30,22 +30,7 @@ Tools.
 
 Requires macOS 11.0 or later.
 
-### Building from source
-
-Requirements: CMake 3.22+, a C++17 compiler, platform SDK (Xcode CLI, Visual Studio, or
-ALSA+X11 dev libs).
-
-```bash
-git clone --recursive https://github.com/themightyzq/TransientCreator.git
-cd TransientCreator
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-```
-
-On macOS this produces a Universal Binary (arm64 + x86_64) with VST3 and AU, and copies
-both into your user plug-in folders automatically after building.
-
-## Quick Start
+## Use
 
 The preset bar in the header (top left) loads any of 5 factory presets or your own saved
 presets. Save writes the current settings to
@@ -70,6 +55,21 @@ menu renames, deletes, or reveals that folder.
 - Right-click a breakpoint to delete it.
 - Alt+drag between breakpoints to bend the curve segment.
 - Double-click to reset to the current preset shape.
+
+## Build
+
+Requirements: CMake 3.22+, a C++17 compiler, platform SDK (Xcode CLI, Visual Studio, or
+ALSA+X11 dev libs).
+
+```bash
+git clone --recursive https://github.com/themightyzq/TransientCreator.git
+cd TransientCreator
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+On macOS this produces a Universal Binary (arm64 + x86_64) with VST3 and AU, and copies
+both into your user plug-in folders automatically after building.
 
 ## Parameters
 
