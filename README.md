@@ -10,11 +10,10 @@ Standalone on macOS; VST3 and Standalone on Windows and Linux. Built with JUCE.
 ## Install
 
 Download the latest build for your platform from the
-[Releases page](https://github.com/themightyzq/TransientCreator/releases/tag/v1.0.0)
-(v1.0.0, 2026-04-20): `TransientCreator-macOS-VST3.zip`,
-`TransientCreator-Windows-VST3.zip`, `TransientCreator-Linux-VST3.zip`. These contain
-VST3 only. AU was added to the source on 2026-09-22 and is not in a release yet; build
-from source (below) if you need the AU.
+[Releases page](https://github.com/themightyzq/TransientCreator/releases/latest):
+`TransientCreator-macOS.zip` (VST3, AU and Standalone, universal),
+`TransientCreator-Windows-VST3.zip`, `TransientCreator-Linux-VST3.zip`. The builds are
+unsigned: on macOS, right-click and Open the Standalone app the first time.
 
 Copy the `.vst3` (and, on macOS, the `.component` for AU hosts like Logic) to your
 plugin folder:

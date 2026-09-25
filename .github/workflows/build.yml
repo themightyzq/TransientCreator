@@ -80,12 +80,25 @@ jobs:
           Expand-Archive pluginval.zip -DestinationPath pluginval_dir
           & "pluginval_dir/pluginval.exe" --strictness-level 10 --validate "build/TransientCreator_artefacts/Release/VST3/Transient Creator.vst3"
 
-      - name: Upload VST3 (macOS)
+      - name: Verify universal binary and macOS 11.0 floor (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          for BIN in "build/TransientCreator_artefacts/Release/VST3/Transient Creator.vst3/Contents/MacOS/Transient Creator" \
+                     "build/TransientCreator_artefacts/Release/AU/Transient Creator.component/Contents/MacOS/Transient Creator"; do
+            echo "$BIN: $(lipo -archs "$BIN") minos $(otool -l "$BIN" | awk '/minos/{print $2}' | sort -u | tr '\n' ' ')"
+            lipo -archs "$BIN" | grep -q arm64 && lipo -archs "$BIN" | grep -q x86_64
+            test "$(otool -l "$BIN" | awk '/minos/{print $2}' | sort -u)" = "11.0"
+          done
+
+      - name: Upload VST3, AU and Standalone (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: TransientCreator-macOS-VST3
-          path: build/TransientCreator_artefacts/Release/VST3/*.vst3
+          name: TransientCreator-macOS
+          path: |
+            build/TransientCreator_artefacts/Release/VST3/*.vst3
+            build/TransientCreator_artefacts/Release/AU/*.component
+            build/TransientCreator_artefacts/Release/Standalone/*.app
 
       - name: Upload VST3 (Windows)
         if: runner.os == 'Windows'
