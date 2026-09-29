@@ -72,17 +72,14 @@ namespace ParamDefaults
     inline constexpr int SYNC_NOTE_DEFAULT     = 2;
 
     // Input Mode
-    // Default is White Noise (index 1), not External Audio (index 0): a new
-    // user who loads the plugin on a silent channel, or opens Standalone with
-    // nothing routed in, must hear the transient engine working immediately.
-    // White Noise is broadband, so the envelope's shape (not a pitch) is what
-    // is heard -- the clearest demonstration of "rhythmic transient events"
-    // this plugin exists to generate, and it is the AUDIT_REPORT.md 3.2
-    // worked example for dialing in a punchy transient. This is a parameter
-    // DEFAULT only (affects newly-created instances); PLUGIN_CODE and the
-    // parameter ID/range are unchanged, so existing saved sessions still
-    // restore whatever inputMode value they stored.
-    inline constexpr int INPUT_MODE_DEFAULT    = 1;
+    // Default is External Audio (index 0): a new instance processes the audio
+    // already playing on the track (Soundminer, Reaper, any DAW effect slot)
+    // and stays silent when nothing is routed in. The internal noise/sine
+    // sources are opt-in. This is a parameter DEFAULT only (affects
+    // newly-created instances and Init); the parameter ID/range and
+    // PLUGIN_CODE are unchanged, so saved sessions restore whatever inputMode
+    // value they stored.
+    inline constexpr int INPUT_MODE_DEFAULT    = 0;
     inline constexpr int INPUT_MODE_SINE_INDEX = 3;  // Index of Sine Oscillator in inputModeChoices
 
     // Output Gain (dB)

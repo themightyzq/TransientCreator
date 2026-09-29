@@ -550,26 +550,26 @@ void EnvelopeVisualizer::loadShapeIntoBreakpoints(EnvelopeShape shape)
         case EnvelopeShape::Exponential:
         {
             bps.push_back({ 0.00f, 1.00f,  0.7f });
-            bps.push_back({ 1.00f, 0.03f,  0.0f });
+            bps.push_back({ 1.00f, 0.00f,  0.0f });
             break;
         }
         case EnvelopeShape::Linear:
         {
             bps.push_back({ 0.00f, 1.00f,  0.0f });
-            bps.push_back({ 1.00f, 0.01f,  0.0f });
+            bps.push_back({ 1.00f, 0.00f,  0.0f });
             break;
         }
         case EnvelopeShape::Logarithmic:
         {
             bps.push_back({ 0.00f, 1.00f, -0.7f });
-            bps.push_back({ 1.00f, 0.02f,  0.0f });
+            bps.push_back({ 1.00f, 0.00f,  0.0f });
             break;
         }
         case EnvelopeShape::ReverseSawtooth:
         {
             bps.push_back({ 0.00f, 1.00f,  0.0f });
             bps.push_back({ 0.15f, 1.00f,  0.0f });
-            bps.push_back({ 1.00f, 0.01f,  0.0f });
+            bps.push_back({ 1.00f, 0.00f,  0.0f });
             break;
         }
         case EnvelopeShape::DoubleTap:
@@ -579,20 +579,20 @@ void EnvelopeVisualizer::loadShapeIntoBreakpoints(EnvelopeShape shape)
             bps.push_back({ 0.20f, 0.12f, -0.2f });
             bps.push_back({ 0.30f, 0.75f,  0.3f });
             bps.push_back({ 0.45f, 0.15f,  0.2f });
-            bps.push_back({ 1.00f, 0.02f,  0.0f });
+            bps.push_back({ 1.00f, 0.00f,  0.0f });
             break;
         }
         case EnvelopeShape::Percussive:
         {
             bps.push_back({ 0.00f, 1.00f,  0.0f });
             bps.push_back({ 0.15f, 0.70f,  0.5f });
-            bps.push_back({ 1.00f, 0.03f,  0.0f });
+            bps.push_back({ 1.00f, 0.00f,  0.0f });
             break;
         }
         default:
         {
             bps.push_back({ 0.00f, 1.00f, 0.5f });
-            bps.push_back({ 1.00f, 0.03f, 0.0f });
+            bps.push_back({ 1.00f, 0.00f, 0.0f });
             break;
         }
     }

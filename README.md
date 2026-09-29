@@ -37,8 +37,8 @@ presets. Save writes the current settings to
 menu renames, deletes, or reveals that folder.
 
 1. Insert Transient Creator on a track, or use Standalone mode.
-2. Choose an input: External Audio processes your track; White Noise, Pink Noise, or
-   Sine generate sound internally.
+2. Choose an input. A new instance uses External Audio and processes the audio on its
+   track; White Noise, Pink Noise, or Sine generate sound internally.
 3. Set Tail Length to control how long each transient lasts.
 4. Set Silence Gap to control the space between transients, or enable Sync for
    tempo-locked timing.
@@ -54,6 +54,13 @@ menu renames, deletes, or reveals that folder.
 - Right-click a breakpoint to delete it.
 - Alt+drag between breakpoints to bend the curve segment.
 - Double-click to reset to the current preset shape.
+
+## Upgrading from v1.0.0
+
+v1.0.0 (VST3 only) used a different manufacturer code, so its VST3 plugin ID differs from
+current builds. VST3 hosts that support plugin compatibility substitute the new plugin for
+the old one automatically when they open a v1.0.0 session. Hosts that do not support it
+show the plugin as missing: insert Transient Creator again and re-apply your settings.
 
 ## Build
 
@@ -88,7 +95,7 @@ both into your user plug-in folders automatically after building.
 | Limiter | On/Off | On | Brickwall output limiter |
 | Sync | On/Off | Off | Lock timing to DAW tempo |
 | Sync Note | 1/1 to 1/16T | 1/4 | Beat subdivision |
-| Input Mode | 4 sources | White Noise | Audio source |
+| Input Mode | 4 sources | External Audio | Audio source |
 | Osc Frequency | 20 to 8000 Hz | 440 Hz | Sine oscillator pitch |
 
 ## Licence

@@ -95,6 +95,10 @@ target_compile_definitions(TransientCreator
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_REPORT_APP_USAGE=0
+        # v1.0.0 (VST3 only) shipped with manufacturer code "Zqsf"; the code is now "ZQSF".
+        # Declare the old VST3 class ID as replaceable so hosts that implement
+        # IPluginCompatibility (moduleinfo.json "Compatibility") load v1.0.0 sessions.
+        "JUCE_VST3_COMPATIBLE_CLASSES=VST3Interface::jucePluginId('Zqsf','TrCr')"
 )
 
 if(APPLE)

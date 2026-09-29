@@ -92,7 +92,7 @@ struct SharedUIState
     {
         breakpoints.clear();
         breakpoints.push_back({ 0.00f, 1.00f,  0.7f });
-        breakpoints.push_back({ 1.00f, 0.03f,  0.0f });
+        breakpoints.push_back({ 1.00f, 0.00f,  0.0f });
 
         rebuildLUTFromBreakpoints();
         std::copy(customCurveStaging.begin(), customCurveStaging.end(), customCurveDisplay.begin());
