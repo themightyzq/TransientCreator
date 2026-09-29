@@ -272,7 +272,7 @@ void MainPanel::paint(juce::Graphics& g)
     auto footer = getLocalBounds().removeFromBottom(16);
     g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.5f));
     g.setFont(juce::Font(juce::FontOptions(9.0f)));
-    g.drawText("v1.0.0", footer.removeFromRight(70), juce::Justification::centredRight);
+    g.drawText(juce::String("v") + JucePlugin_VersionString, footer.removeFromRight(70), juce::Justification::centredRight);
 }
 
 void MainPanel::resized()
