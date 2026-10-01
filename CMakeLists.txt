@@ -165,6 +165,27 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PresetManagerTests.cpp")
     )
 endif()
 
+# ---- Editor lifetime regression app: real processor + editor driven through the message loop.
+# Shape automation pending when the editor closes must not touch freed editor memory (the
+# v1.1.2 intermittent pluginval crash). Same link-against-TransientCreator pattern as above.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/EditorLifetimeTests.cpp")
+    juce_add_console_app(transient_editor_lifetime_tests PRODUCT_NAME "transient_editor_lifetime_tests")
+    target_sources(transient_editor_lifetime_tests PRIVATE Tests/EditorLifetimeTests.cpp)
+    target_include_directories(transient_editor_lifetime_tests
+        PRIVATE
+            Source
+            $<TARGET_PROPERTY:TransientCreator,JUCE_GENERATED_SOURCES_DIRECTORY>
+    )
+    target_link_libraries(transient_editor_lifetime_tests
+        PRIVATE
+            TransientCreator
+            TransientCreatorPresets
+            juce::juce_audio_utils
+            juce::juce_dsp
+            zqsfx::zqsfx_ui
+    )
+endif()
+
 # === Unit tests (JUCE UnitTest framework, no external dependency) ===
 # Tests/ is tracked in both Diversion and the git mirror and CI runs it through ctest.
 # The presence guard stays so a source export without Tests/ still configures.
@@ -174,5 +195,8 @@ if(TRANSIENTCREATOR_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/CM
     add_subdirectory(Tests)
     if(TARGET transient_preset_tests)
         add_test(NAME TransientCreatorPresetTests COMMAND transient_preset_tests)
+    endif()
+    if(TARGET transient_editor_lifetime_tests)
+        add_test(NAME TransientCreatorEditorLifetimeTests COMMAND transient_editor_lifetime_tests)
     endif()
 endif()

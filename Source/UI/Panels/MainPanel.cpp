@@ -148,11 +148,14 @@ void MainPanel::showPresetMenu()
     menu.addItem(3, "Reveal Preset Folder");
 
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(presetMenuButton),
-        [this](int result)
+        [safe = juce::Component::SafePointer<MainPanel> (this)](int result)
         {
-            if (result == 1)      doRenamePreset();
-            else if (result == 2) doDeletePreset();
-            else if (result == 3) revealPresetFolder();
+            auto* self = safe.getComponent();
+            if (self == nullptr)
+                return; // the editor closed while the menu was open
+            if (result == 1)      self->doRenamePreset();
+            else if (result == 2) self->doDeletePreset();
+            else if (result == 3) self->revealPresetFolder();
         });
 }
 
@@ -164,15 +167,16 @@ void MainPanel::doSavePreset()
     aw->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
     aw->enterModalState(true, juce::ModalCallbackFunction::create(
-        [this, aw](int result)
+        [safe = juce::Component::SafePointer<MainPanel> (this), aw](int result)
         {
-            if (result == 1)
+            auto* self = safe.getComponent();
+            if (self != nullptr && result == 1)
             {
                 const auto name = aw->getTextEditorContents("name");
                 juce::String err;
-                if (!presetManagerRef.saveUser(name, err))
+                if (!self->presetManagerRef.saveUser(name, err))
                     juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Save Preset", err);
-                refreshPresetCombo();
+                self->refreshPresetCombo();
             }
         }), true);
 }
@@ -189,15 +193,16 @@ void MainPanel::doRenamePreset()
     aw->addButton("Rename", 1, juce::KeyPress(juce::KeyPress::returnKey));
     aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
     aw->enterModalState(true, juce::ModalCallbackFunction::create(
-        [this, aw, current](int result)
+        [safe = juce::Component::SafePointer<MainPanel> (this), aw, current](int result)
         {
-            if (result == 1)
+            auto* self = safe.getComponent();
+            if (self != nullptr && result == 1)
             {
                 const auto name = aw->getTextEditorContents("name");
                 juce::String err;
-                if (!presetManagerRef.renameUser(current, name, err))
+                if (!self->presetManagerRef.renameUser(current, name, err))
                     juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Rename Preset", err);
-                refreshPresetCombo();
+                self->refreshPresetCombo();
             }
         }), true);
 }
@@ -213,14 +218,15 @@ void MainPanel::doDeletePreset()
         "Delete \"" + name + "\"? This moves the file to the Trash.",
         "Delete", "Cancel", this,
         juce::ModalCallbackFunction::create(
-            [this, current](int result)
+            [safe = juce::Component::SafePointer<MainPanel> (this), current](int result)
             {
-                if (result == 1)
+                auto* self = safe.getComponent();
+                if (self != nullptr && result == 1)
                 {
                     juce::String err;
-                    if (!presetManagerRef.deleteUser(current, err))
+                    if (!self->presetManagerRef.deleteUser(current, err))
                         juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Delete Preset", err);
-                    refreshPresetCombo();
+                    self->refreshPresetCombo();
                 }
             }));
 }

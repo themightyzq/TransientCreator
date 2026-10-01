@@ -49,18 +49,22 @@ void EnvelopeVisualizer::timerCallback()
         curveIsModified = false;
         sharedStateRef.customCurveLoaded.store(false, std::memory_order_release);
     }
+
+    // Applied after the restored-curve copy above, so a state restore that also changes the
+    // shape ends with the shape's preset everywhere (breakpoints, audio LUT and display), as
+    // before this hand-off moved from a posted message to the timer.
+    const int shape = pendingShape.exchange(NO_PENDING_SHAPE, std::memory_order_acq_rel);
+    if (shape != NO_PENDING_SHAPE)
+        loadShapeIntoBreakpoints(static_cast<EnvelopeShape>(shape));
+
     repaint();
 }
 
 void EnvelopeVisualizer::parameterChanged(const juce::String& parameterID, float newValue)
 {
+    // May run on the audio thread: a lock-free store only, applied by timerCallback().
     if (parameterID == ParamIDs::SHAPE)
-    {
-        const auto shape = static_cast<EnvelopeShape>(static_cast<int>(newValue));
-        juce::MessageManager::callAsync([this, shape]() {
-            loadShapeIntoBreakpoints(shape);
-        });
-    }
+        pendingShape.store(static_cast<int>(newValue), std::memory_order_release);
 }
 
 void EnvelopeVisualizer::updateLayoutCache()

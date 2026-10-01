@@ -61,6 +61,14 @@ private:
 
     std::array<float, SharedUIState::CUSTOM_CURVE_SIZE> localCurve {};
 
+    // Shape change handed from parameterChanged() (any thread, including the audio thread when
+    // a host automates the shape) to timerCallback() (message thread). parameterChanged() only
+    // stores here: posting a message from it allocated on the audio thread, and a posted lambda
+    // capturing `this` could run after the editor was deleted. The timer stops in the destructor,
+    // so nothing outlives this component.
+    static constexpr int NO_PENDING_SHAPE = -1;
+    std::atomic<int> pendingShape { NO_PENDING_SHAPE };
+
     // Breakpoint interaction
     int dragIndex = -1;
     int hoveredIndex = -1;
