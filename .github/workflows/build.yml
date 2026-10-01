@@ -56,8 +56,13 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
+      # DSP unit tests (TransientCreatorTests) and the preset regression app, both built
+      # by the step above from Tests/.
+      - name: Test (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: ctest --test-dir build -C Release --output-on-failure
+
       # Validate the built VST3 with pluginval at the project's mandated strictness.
-      # (Unit tests are not run here: Tests/ lives in Diversion, not the git mirror.)
       - name: Validate with pluginval (macOS)
         if: runner.os == 'macOS'
         run: |

@@ -269,9 +269,14 @@ void MainPanel::paint(juce::Graphics& g)
                juce::Justification::centred);
 
     // --- Footer ---
-    auto footer = getLocalBounds().removeFromBottom(16);
-    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM).withAlpha(0.5f));
-    g.setFont(juce::Font(juce::FontOptions(9.0f)));
+    // The plugin editor's JUCE resize grip is an 18x18 corner component pinned to the bottom-right
+    // (AudioProcessorEditor::resized, resizerSize = 18). Keep the version text clear of it, with
+    // a 2 px gap. Drawn at full TEXT_DIM (silkCaption, passes 4.5:1 on the chassis); the old 0.5
+    // alpha blended it down to roughly 2.4:1.
+    constexpr int resizeGripClearance = 20;
+    auto footer = getLocalBounds().removeFromBottom(16).withTrimmedRight(resizeGripClearance);
+    g.setColour(juce::Colour(TransientLookAndFeel::TEXT_DIM));
+    g.setFont(juce::Font(juce::FontOptions(10.0f)));
     g.drawText(juce::String("v") + JucePlugin_VersionString, footer.removeFromRight(70), juce::Justification::centredRight);
 }
 

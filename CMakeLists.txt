@@ -146,8 +146,7 @@ target_link_libraries(transient_ui_snapshot
 # preset via PresetManager and asserts it differs from Init, then round-trips a user
 # preset's name (saved to a temp dir, not the real user preset folder) through
 # getStateInformation()/setStateInformation(). Same link-against-TransientCreator pattern as
-# transient_ui_snapshot above -- guarded the same way as Tests/ below, since the source lives
-# in Diversion, not the git mirror.
+# transient_ui_snapshot above. Guarded on the source's presence like Tests/ below.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PresetManagerTests.cpp")
     juce_add_console_app(transient_preset_tests PRODUCT_NAME "transient_preset_tests")
     target_sources(transient_preset_tests PRIVATE Tests/PresetManagerTests.cpp)
@@ -167,8 +166,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PresetManagerTests.cpp")
 endif()
 
 # === Unit tests (JUCE UnitTest framework, no external dependency) ===
-# Tests/ lives in the authoritative VCS (Diversion), not the minimal git mirror,
-# so guard on its presence: the mirror configures fine without it.
+# Tests/ is tracked in both Diversion and the git mirror and CI runs it through ctest.
+# The presence guard stays so a source export without Tests/ still configures.
 option(TRANSIENTCREATOR_BUILD_TESTS "Build the DSP unit-test runner" ON)
 if(TRANSIENTCREATOR_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/CMakeLists.txt")
     enable_testing()
