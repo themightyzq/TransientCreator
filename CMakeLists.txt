@@ -19,7 +19,7 @@ add_subdirectory(JUCE)
 include(FetchContent)
 FetchContent_Declare(zqsfx_ui
     GIT_REPOSITORY https://github.com/themightyzq/zqsfx_ui.git
-    GIT_TAG v0.4.0
+    GIT_TAG v0.5.0
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(zqsfx_ui)
 
@@ -186,6 +186,27 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/EditorLifetimeTests.cpp")
     )
 endif()
 
+# ---- Editor controls regression app: opens the real editor and walks its children. Every
+# parameter-bound slider must be a zqsfx::ui::Dial (keyboard focus, focus ring, Shift+arrow) and
+# double-click must return it to the parameter's default. Same link pattern as above.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/EditorControlsTests.cpp")
+    juce_add_console_app(transient_editor_controls_tests PRODUCT_NAME "transient_editor_controls_tests")
+    target_sources(transient_editor_controls_tests PRIVATE Tests/EditorControlsTests.cpp)
+    target_include_directories(transient_editor_controls_tests
+        PRIVATE
+            Source
+            $<TARGET_PROPERTY:TransientCreator,JUCE_GENERATED_SOURCES_DIRECTORY>
+    )
+    target_link_libraries(transient_editor_controls_tests
+        PRIVATE
+            TransientCreator
+            TransientCreatorPresets
+            juce::juce_audio_utils
+            juce::juce_dsp
+            zqsfx::zqsfx_ui
+    )
+endif()
+
 # === Unit tests (JUCE UnitTest framework, no external dependency) ===
 # Tests/ is tracked in both Diversion and the git mirror and CI runs it through ctest.
 # The presence guard stays so a source export without Tests/ still configures.
@@ -198,5 +219,8 @@ if(TRANSIENTCREATOR_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/CM
     endif()
     if(TARGET transient_editor_lifetime_tests)
         add_test(NAME TransientCreatorEditorLifetimeTests COMMAND transient_editor_lifetime_tests)
+    endif()
+    if(TARGET transient_editor_controls_tests)
+        add_test(NAME TransientCreatorEditorControlsTests COMMAND transient_editor_controls_tests)
     endif()
 endif()

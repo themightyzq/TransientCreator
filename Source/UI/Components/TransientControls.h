@@ -17,10 +17,8 @@ public:
 private:
     void timerCallback() override;
     void updateConditionalState();
-    void setupRotaryKnob(juce::Slider& slider, juce::Label& label,
-                         const juce::String& labelText, double defaultValue);
-    void setupVerticalFader(juce::Slider& slider, juce::Label& label,
-                            const juce::String& labelText, double defaultValue);
+    void setupRotaryKnob(juce::Slider& slider, juce::Label& label, const juce::String& labelText);
+    void setupVerticalFader(juce::Slider& slider, juce::Label& label, const juce::String& labelText);
 
     static constexpr int STATE_CHECK_HZ = 15;
 
@@ -31,17 +29,19 @@ private:
     zqsfx::ui::Panel envelopePanel { "Envelope" };
 
     // Vertical faders
-    juce::Slider attackTimeFader, sustainHoldFader, tailLengthFader;
+    // Every parameter slider is a zqsfx::ui::Dial: keyboard focus, focus ring, Shift+arrow fine
+    // step. Double-click returns to the parameter default (setDoubleClickDefault, in the ctor).
+    zqsfx::ui::Dial attackTimeFader, sustainHoldFader, tailLengthFader;
     juce::Label attackTimeLabel, sustainHoldLabel, tailLengthLabel;
 
     // Primary knobs
-    juce::Slider transientGainSlider, pitchStartSlider, pitchEndSlider;
-    juce::Slider mixSlider, outputGainSlider;
+    zqsfx::ui::Dial transientGainSlider, pitchStartSlider, pitchEndSlider;
+    zqsfx::ui::Dial mixSlider, outputGainSlider;
     juce::Label transientGainLabel, pitchStartLabel, pitchEndLabel;
     juce::Label mixLabel, outputGainLabel;
 
     // Secondary knobs
-    juce::Slider silenceGapSlider, humanizeSlider, sineFreqSlider;
+    zqsfx::ui::Dial silenceGapSlider, humanizeSlider, sineFreqSlider;
     juce::Label silenceGapLabel, humanizeLabel, sineFreqLabel;
 
     // Dropdowns

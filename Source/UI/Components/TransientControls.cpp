@@ -21,15 +21,15 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     addAndMakeVisible(envelopePanel);
 
     // === Vertical faders (timing) ===
-    setupVerticalFader(attackTimeFader, attackTimeLabel, "ATK", ParamDefaults::ATTACK_TIME_DEFAULT);
+    setupVerticalFader(attackTimeFader, attackTimeLabel, "ATK");
     attackTimeFader.setTooltip("Onset ramp time - 0 ms is instant apex, higher values soften the attack");
     mirrorTooltipToDescription(attackTimeFader);
 
-    setupVerticalFader(sustainHoldFader, sustainHoldLabel, "HOLD", ParamDefaults::SUSTAIN_HOLD_DEFAULT);
+    setupVerticalFader(sustainHoldFader, sustainHoldLabel, "HOLD");
     sustainHoldFader.setTooltip("Hold at peak amplitude before decay begins (% of tail duration)");
     mirrorTooltipToDescription(sustainHoldFader);
 
-    setupVerticalFader(tailLengthFader, tailLengthLabel, "TAIL", ParamDefaults::TAIL_LENGTH_DEFAULT);
+    setupVerticalFader(tailLengthFader, tailLengthLabel, "TAIL");
     tailLengthFader.setTooltip("Duration of the transient decay in milliseconds");
     mirrorTooltipToDescription(tailLengthFader);
 
@@ -39,43 +39,43 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     // drawRotarySlider / drawVectorKnob). The section/channel meaning that colour used to carry
     // is now on each knob's own Label instead (never colour alone: label text + position under
     // the coloured "SHAPE"/"TIMING"/"OUTPUT"/group header + this per-knob label colour).
-    setupRotaryKnob(transientGainSlider, transientGainLabel, "Boost", ParamDefaults::TRANSIENT_GAIN_DEFAULT);
+    setupRotaryKnob(transientGainSlider, transientGainLabel, "Boost");
     transientGainSlider.setTooltip("Amplify the transient peak - scales with envelope (0 dB = no boost)");
     mirrorTooltipToDescription(transientGainSlider);
     transientGainLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
-    setupRotaryKnob(pitchStartSlider, pitchStartLabel, "P.Start", ParamDefaults::PITCH_START_DEFAULT);
+    setupRotaryKnob(pitchStartSlider, pitchStartLabel, "P.Start");
     pitchStartSlider.setTooltip("Pitch offset at transient start (semitones, + = up, - = down)");
     mirrorTooltipToDescription(pitchStartSlider);
     pitchStartLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
-    setupRotaryKnob(pitchEndSlider, pitchEndLabel, "P.End", ParamDefaults::PITCH_END_DEFAULT);
+    setupRotaryKnob(pitchEndSlider, pitchEndLabel, "P.End");
     pitchEndSlider.setTooltip("Pitch offset at transient end (semitones, + = up, - = down)");
     mirrorTooltipToDescription(pitchEndSlider);
     pitchEndLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_SHAPE));
 
-    setupRotaryKnob(mixSlider, mixLabel, "Mix", ParamDefaults::MIX_DEFAULT);
+    setupRotaryKnob(mixSlider, mixLabel, "Mix");
     mixSlider.setTooltip("Blend between dry input (0%) and processed transient output (100%)");
     mirrorTooltipToDescription(mixSlider);
     mixLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
 
-    setupRotaryKnob(outputGainSlider, outputGainLabel, "Gain", ParamDefaults::OUTPUT_GAIN_DEFAULT);
+    setupRotaryKnob(outputGainSlider, outputGainLabel, "Gain");
     outputGainSlider.setTooltip("Output level boost or cut in dB");
     mirrorTooltipToDescription(outputGainSlider);
     outputGainLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_OUTPUT));
 
     // === Secondary rotary knobs ===
-    setupRotaryKnob(silenceGapSlider, silenceGapLabel, "Gap", ParamDefaults::SILENCE_GAP_DEFAULT);
+    setupRotaryKnob(silenceGapSlider, silenceGapLabel, "Gap");
     silenceGapSlider.setTooltip("Silence between transients (overridden when Sync is ON)");
     mirrorTooltipToDescription(silenceGapSlider);
     silenceGapLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_TIMING));
 
-    setupRotaryKnob(humanizeSlider, humanizeLabel, "Humanize", ParamDefaults::HUMANIZE_DEFAULT);
+    setupRotaryKnob(humanizeSlider, humanizeLabel, "Humanize");
     humanizeSlider.setTooltip("Per-cycle random variation on timing for organic feel");
     mirrorTooltipToDescription(humanizeSlider);
     humanizeLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_TIMING));
 
-    setupRotaryKnob(sineFreqSlider, sineFreqLabel, "Freq", ParamDefaults::SINE_FREQ_DEFAULT);
+    setupRotaryKnob(sineFreqSlider, sineFreqLabel, "Freq");
     sineFreqSlider.setTooltip("Frequency of the internal sine oscillator");
     mirrorTooltipToDescription(sineFreqSlider);
     sineFreqLabel.setColour(juce::Label::textColourId, juce::Colour(TransientLookAndFeel::COLOR_FREQUENCY));
@@ -126,6 +126,19 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
     silenceGapAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SILENCE_GAP, silenceGapSlider);
     humanizeAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::HUMANIZE, humanizeSlider);
     sineFreqAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ParamIDs::SINE_FREQ, sineFreqSlider);
+    // Double-click returns each slider to its PARAMETER's default. Must follow the attachments:
+    // they give the sliders their ranges.
+    zqsfx::ui::setDoubleClickDefault(attackTimeFader, apvts, ParamIDs::ATTACK_TIME);
+    zqsfx::ui::setDoubleClickDefault(sustainHoldFader, apvts, ParamIDs::SUSTAIN_HOLD);
+    zqsfx::ui::setDoubleClickDefault(tailLengthFader, apvts, ParamIDs::TAIL_LENGTH);
+    zqsfx::ui::setDoubleClickDefault(transientGainSlider, apvts, ParamIDs::TRANSIENT_GAIN);
+    zqsfx::ui::setDoubleClickDefault(pitchStartSlider, apvts, ParamIDs::PITCH_START);
+    zqsfx::ui::setDoubleClickDefault(pitchEndSlider, apvts, ParamIDs::PITCH_END);
+    zqsfx::ui::setDoubleClickDefault(mixSlider, apvts, ParamIDs::MIX);
+    zqsfx::ui::setDoubleClickDefault(outputGainSlider, apvts, ParamIDs::OUTPUT_GAIN);
+    zqsfx::ui::setDoubleClickDefault(silenceGapSlider, apvts, ParamIDs::SILENCE_GAP);
+    zqsfx::ui::setDoubleClickDefault(humanizeSlider, apvts, ParamIDs::HUMANIZE);
+    zqsfx::ui::setDoubleClickDefault(sineFreqSlider, apvts, ParamIDs::SINE_FREQ);
     inputModeAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::INPUT_MODE, inputModeSelector);
     syncNoteAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ParamIDs::SYNC_NOTE, syncNoteSelector);
     syncAttachment           = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ParamIDs::SYNC_ENABLED, syncToggle);
@@ -140,11 +153,10 @@ TransientControls::TransientControls(juce::AudioProcessorValueTreeState& apvts)
 TransientControls::~TransientControls() { stopTimer(); }
 
 void TransientControls::setupRotaryKnob(juce::Slider& slider, juce::Label& label,
-                                         const juce::String& labelText, double defaultValue)
+                                         const juce::String& labelText)
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-    slider.setDoubleClickReturnValue(true, defaultValue);
     slider.setTitle(labelText);
     addAndMakeVisible(slider);
     label.setText(labelText, juce::dontSendNotification);
@@ -154,11 +166,10 @@ void TransientControls::setupRotaryKnob(juce::Slider& slider, juce::Label& label
 }
 
 void TransientControls::setupVerticalFader(juce::Slider& slider, juce::Label& label,
-                                            const juce::String& labelText, double defaultValue)
+                                            const juce::String& labelText)
 {
     slider.setSliderStyle(juce::Slider::LinearVertical);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 64, 16);
-    slider.setDoubleClickReturnValue(true, defaultValue);
     slider.setTitle(labelText);
     slider.setColour(juce::Slider::trackColourId, juce::Colour(TransientLookAndFeel::COLOR_TIMING));
     addAndMakeVisible(slider);
